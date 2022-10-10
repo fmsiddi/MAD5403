@@ -11,12 +11,13 @@ def generate_L(n):
     return L
 
 def generate_U(n):
-    L = generate_L(10)
+    L = generate_L(n)
     U = L.T
     return U
 
-L = generate_L(10)
-U = generate_U(10)
+n = 10
+L = generate_L(n)
+U = generate_U(n)
 
 def mat_mult(L,U):
     A = np.zeros((L.shape[0],U.shape[1]))
@@ -25,7 +26,14 @@ def mat_mult(L,U):
             A[i,j] = sum(L[i] * U.T[j])
     return A
 
-L = np.array([[1,2],[3,4]])
-U = np.array([[2,3],[4,5]])
-
 A = mat_mult(L,U)
+
+def generate_b(A,x):
+    b = mat_mult(A,x)
+    return b
+
+x = np.zeros(n)
+for i in range(n):
+    x[i] = rnd.random()
+    
+b = generate_b(A,x)
