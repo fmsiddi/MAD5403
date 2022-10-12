@@ -20,10 +20,15 @@ L = generate_L(n)
 U = generate_U(n)
 
 def mat_mult(L,U):
-    A = np.zeros((L.shape[0],U.shape[1]))
-    for i in range(L.shape[0]):
-        for j in range(U.shape[1]):
-            A[i,j] = sum(L[i] * U.T[j])
+    if len(U.shape) > 1:
+        A = np.zeros((L.shape[0],U.shape[1]))
+        for i in range(L.shape[0]):
+            for j in range(U.shape[1]):
+                A[i,j] = sum(L[i] * U.T[j])
+    else:
+        A = np.zeros(L.shape[0])
+        for i in range(L.shape[1]):
+            A[i] = sum(L[i] * U)
     return A
 
 A = mat_mult(L,U)
