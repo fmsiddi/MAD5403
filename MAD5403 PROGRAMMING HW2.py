@@ -154,12 +154,29 @@ def forward_sub(b, LU, orientation_method):
     if orientation_method == 'row':
         y[0] = b[0]/L[0,0]
         for i in range(1,n):
-            y[i] = (b[i]-L[i,:i-1])*(y[:i-1].T)/L[i,i]
+            y[i] = sum((b[i]-L[i,:i-1])*(y[:i-1]))/L[i,i]
         return y
     if orientation_method == 'col':
+        y = b
         for j in range(n-1):
-            y[j] = b[j]/L[j,j]
+            y[j] = y[j]/L[j,j]
+            y[j+1:] = sum(y[j+1:]-(y[j]*L[j+1:,j]))
+        y[n] = y[n]/L[n,n]
         return y
+    
+def backward_sub(b, LU, orientation_method):
+    n = b.shape[0]
+    x = np.ndarray(n)
+    U = np.triu(LU)
+    if orientation_method == 'row':
+        return x
+    if orientation_method == 'col':
+        x = b
+        for j in reversed(range(1,n)):
+            x[j] = x[j]/U[j,j]
+            x[:j-1] = sum(x[:j-1]-(x[j]*U[:j-1,j]))
+        x[n] = x[n]/U[n,n]
+        return x
 
 def solver(b, LU, orientation_method, P=None, Q=None):
     x = None
@@ -167,4 +184,7 @@ def solver(b, LU, orientation_method, P=None, Q=None):
         return x
     if orientation_method == 'col':
         return x
+    
+for i in reversed(range(1,n)):
+    print(i)
     
