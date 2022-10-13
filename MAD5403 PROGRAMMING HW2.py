@@ -63,13 +63,30 @@ def LU_factorization(A, pivot='none'):
     n = A.shape[0]
     if pivot == 'none':
         for k in range(n-1):
-            A[k+1:n, k] = A[k+1:n, k]/A[k,k]
+            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            # print('A with modified k column at step {}'.format(k+1))
+            # print(A)
             for j in range(k+1, n):
                 for i in range(k+1, n):
                     A[i,j] = A[i,j] - A[i,k]*A[k,j]
         return A
     if pivot == 'partial':
-        P = None
+        P = np.arange(n)
+        for k in range(n-1):
+            p_index = abs(A[k:,k]).argmax() + k
+            if p_index - k > 0:
+                P[[k,p_index]] = P[[p_index,k]]
+                A = A[P]
+                print('permuted A at step {}'.format(k+1))
+                print(A)
+            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            print('A with modified k column at step {}'.format(k+1))
+            print(A)
+            for j in range(k+1, n):
+                for i in range(k+1, n):
+                    A[i,j] = A[i,j] - A[i,k]*A[k,j]
+            print('A at the end of step {}'.format(k+1))
+            print(A)
         return A, P
     if pivot == 'complete':
         P = None
@@ -81,11 +98,20 @@ A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 # solution: [  1   1   1]
 #           [  4  -1  -5]
 #           [  3  -2 -10]
-LU = LU_factorization(A, pivot='none')
-print(LU)
+# LU = LU_factorization(A, pivot='none')
+# print(LU)
+LU, P = LU_factorization(A, pivot='partial')
+L = np.tril(LU)
+np.fill_diagonal(L,1)
+U = np.triu(LU)
+A = mat_mult(L,U)
+A = A[P]
+# print(A)
+
 
 def get_A_from_LU(LU,P=None,Q=None):  
     A = None
+    np.tril()
     return A
 
 #%%
@@ -95,5 +121,3 @@ def solver(b, LU, orientation_method, P=None, Q=None):
     x = None
     return x
     
-
-
