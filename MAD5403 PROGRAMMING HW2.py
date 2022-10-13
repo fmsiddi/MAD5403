@@ -59,6 +59,11 @@ b = generate_b(A,x)
 #%%
 
 # Step 3:
+def index_flip(array,i,j):
+    out = array
+    out[[i,j]] = out[[j,i]]
+    return out
+
 def LU_factorization(A, pivot='none'):
     n = A.shape[0]
     if pivot == 'none':
@@ -76,17 +81,12 @@ def LU_factorization(A, pivot='none'):
             p_index = abs(A[k:,k]).argmax() + k
             if p_index - k > 0:
                 P[[k,p_index]] = P[[p_index,k]]
-                A = A[P]
-                print('permuted A at step {}'.format(k+1))
-                print(A)
+                A = A[index_flip(np.arange(n),k,p_index)]
             A[k+1:, k] = A[k+1:, k]/A[k,k]
-            print('A with modified k column at step {}'.format(k+1))
-            print(A)
             for j in range(k+1, n):
                 for i in range(k+1, n):
                     A[i,j] = A[i,j] - A[i,k]*A[k,j]
-            print('A at the end of step {}'.format(k+1))
-            print(A)
+            P = np.array([list(P).index(i) for i in range(n)])
         return A, P
     if pivot == 'complete':
         P = None
@@ -101,18 +101,19 @@ A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 # LU = LU_factorization(A, pivot='none')
 # print(LU)
 LU, P = LU_factorization(A, pivot='partial')
-L = np.tril(LU)
-np.fill_diagonal(L,1)
-U = np.triu(LU)
-A = mat_mult(L,U)
-A = A[P]
-# print(A)
-
+A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 
 def get_A_from_LU(LU,P=None,Q=None):  
-    A = None
-    np.tril()
-    return A
+    L = np.tril(LU)
+    np.fill_diagonal(L,1)
+    U = np.triu(LU)
+    A = mat_mult(L,U)
+    if P.any() != None:
+        A = A[P]
+    print(A)
+    return
+
+get_A_from_LU(LU,P)
 
 #%%
 
