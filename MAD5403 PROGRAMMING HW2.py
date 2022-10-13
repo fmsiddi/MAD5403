@@ -146,7 +146,25 @@ get_A_from_LU(LU,P,Q)
 #%%
 
 # Step 4:
+def forward_sub(b, LU, orientation_method):
+    n = b.shape[0]
+    y = np.ndarray(n)
+    L = np.tril(LU)
+    np.fill_diagonal(L,1)
+    if orientation_method == 'row':
+        y[0] = b[0]/L[0,0]
+        for i in range(1,n):
+            y[i] = (b[i]-L[i,:i-1])*(y[:i-1].T)/L[i,i]
+        return y
+    if orientation_method == 'col':
+        for j in range(n-1):
+            y[j] = b[j]/L[j,j]
+        return y
+
 def solver(b, LU, orientation_method, P=None, Q=None):
     x = None
-    return x
+    if orientation_method == 'row':
+        return x
+    if orientation_method == 'col':
+        return x
     
