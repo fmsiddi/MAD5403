@@ -68,9 +68,11 @@ def LU_factorization(A, pivot='none'):
     n = A.shape[0]
     if pivot == 'none':
         for k in range(n-1):
+            if A[k,k] == 0:
+                print('Error: diagonal element of 0 encountered')
+                print('Try partial pivoting')
+                break
             A[k+1:, k] = A[k+1:, k]/A[k,k]
-            # print('A with modified k column at step {}'.format(k+1))
-            # print(A)
             for j in range(k+1, n):
                 for i in range(k+1, n):
                     A[i,j] = A[i,j] - A[i,k]*A[k,j]
@@ -82,6 +84,10 @@ def LU_factorization(A, pivot='none'):
             if p_index - k > 0:
                 P[[k,p_index]] = P[[p_index,k]]
                 A = A[index_flip(np.arange(n),k,p_index)]
+            if A[k,k] == 0:
+                print('Error: diagonal element of 0 encountered')
+                print('Try complete pivoting')
+                break
             A[k+1:, k] = A[k+1:, k]/A[k,k]
             for j in range(k+1, n):
                 for i in range(k+1, n):
@@ -89,10 +95,29 @@ def LU_factorization(A, pivot='none'):
             P = np.array([list(P).index(i) for i in range(n)])
         return A, P
     if pivot == 'complete':
-        P = None
-        Q = None
+        P = np.arange(n)
+        Q = np.arange(n)
+        for k in range(n-1):
+            p_index = abs(A[k:,k:]).argmax() // A[k:,k:].shape[0] + k
+            q_index = abs(A[k:,k:].T).argmax() // A[k:,k:].shape[1] + k
+            if p_index - k > 0:
+                P[[k,p_index]] = P[[p_index,k]]
+                A = A[index_flip(np.arange(n),k,p_index)]
+            if q_index - k > 0:
+                Q[[k,q_index]] = Q[[q_index,k]]
+                A = A.T[index_flip(np.arange(n),k,q_index)].T
+            if A[k,k] == 0:
+                print('Error: matrix is singular, LU factorization does not exist')
+                break
+            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            for j in range(k+1, n):
+                for i in range(k+1, n):
+                    A[i,j] = A[i,j] - A[i,k]*A[k,j]
+            P = np.array([list(P).index(i) for i in range(n)])
+            Q = np.array([list(Q).index(i) for i in range(n)])
         return A, P, Q
-    
+
+#%%
 # test matrix from https://www.geeksforgeeks.org/l-u-decomposition-system-linear-equations/
 A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 # solution: [  1   1   1]
@@ -100,7 +125,8 @@ A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 #           [  3  -2 -10]
 # LU = LU_factorization(A, pivot='none')
 # print(LU)
-LU, P = LU_factorization(A, pivot='partial')
+# LU, P = LU_factorization(A, pivot='partial')
+LU, P, Q = LU_factorization(A, pivot='complete')
 A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 
 def get_A_from_LU(LU,P=None,Q=None):  
@@ -110,10 +136,12 @@ def get_A_from_LU(LU,P=None,Q=None):
     A = mat_mult(L,U)
     if P.any() != None:
         A = A[P]
+    if Q.any() != None:
+        A = A.T[Q].T
     print(A)
     return
 
-get_A_from_LU(LU,P)
+get_A_from_LU(LU,P,Q)
 
 #%%
 
