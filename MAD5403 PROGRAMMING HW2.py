@@ -120,71 +120,118 @@ def LU_factorization(A, pivot='none'):
 #%%
 # test matrix from https://www.geeksforgeeks.org/l-u-decomposition-system-linear-equations/
 A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
-# solution: [  1   1   1]
-#           [  4  -1  -5]
-#           [  3  -2 -10]
+# solution: [1   1   1]
+#           [4  -1  -5]
+#           [3  -2 -10]
 # LU = LU_factorization(A, pivot='none')
 # print(LU)
 # LU, P = LU_factorization(A, pivot='partial')
 LU, P, Q = LU_factorization(A, pivot='complete')
 A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 
-def get_A_from_LU(LU,P=None,Q=None):  
+def get_A_from_LU(LU,row_permuted=False,column_permuted=False,P=None,Q=None):  
+    if row_permuted == False and column_permuted == False:
+        print('Error: Columns cannot be pivoted without rows also being permuted')
+        return
     L = np.tril(LU)
     np.fill_diagonal(L,1)
     U = np.triu(LU)
     A = mat_mult(L,U)
-    if P.any() != None:
+    if row_permuted:
         A = A[P]
-    if Q.any() != None:
-        A = A.T[Q].T
+        if column_permuted:
+            A = A.T[Q].T
     print(A)
     return
 
-get_A_from_LU(LU,P,Q)
+get_A_from_LU(LU,True,True,P,Q)
 
 #%%
 
 # Step 4:
+def get_LU_vector(LU, lower_or_upper, row_or_col, i):
+    if lower_or_upper == 'L':
+        if row_or_col == 'row':
+            v = LU[i]
+            v[i] = 1
+            v[i+1:] = 0
+        elif row_or_col == 'col':
+            v = LU.T[i]
+            v[i] = 1
+            v[:i] = 0
+    elif lower_or_upper == 'U':
+        if row_or_col == 'row':
+            v = LU[i]
+            v[:i] = 0
+        elif row_or_col == 'col':
+            v = LU.T[i]
+            v[i+1:] = 0
+    return v
+    
 def forward_sub(b, LU, orientation_method):
     n = b.shape[0]
-    y = np.ndarray(n)
-    L = np.tril(LU)
-    np.fill_diagonal(L,1)
     if orientation_method == 'row':
-        y[0] = b[0]/L[0,0]
+        y = np.ndarray(n)
+        y[0] = b[0]
         for i in range(1,n):
-            y[i] = sum((b[i]-L[i,:i-1])*(y[:i-1]))/L[i,i]
+            L_i = get_LU_vector(LU,'L','row',i)
+            y[i] = (b[i]-sum(L_i[:i]*y[:i]))/L_i[i]
         return y
     if orientation_method == 'col':
-        y = b
         for j in range(n-1):
-            y[j] = y[j]/L[j,j]
-            y[j+1:] = sum(y[j+1:]-(y[j]*L[j+1:,j]))
-        y[n] = y[n]/L[n,n]
-        return y
+            L_j = get_LU_vector(LU,'L','col',j)
+            b[j] = b[j]/L_j[j]
+            b[j+1:] = b[j+1:]-(b[j]*L_j[j+1:])
+        b[n-1] = b[n-1]
+        return b
     
 def backward_sub(b, LU, orientation_method):
+    # TODO: fix this
     n = b.shape[0]
-    x = np.ndarray(n)
-    U = np.triu(LU)
     if orientation_method == 'row':
+        x = np.ndarray(n)
+        x[n-1] = b[n-1]/get_LU_vector(LU,'U','row',n-1)[n-1]
+        for i in reversed(range(n-1)):
+            U_i = get_LU_vector(LU,'U','row',i)
+            x[i] = (b[i]-sum(U_i[i+1:]*x[:i+1]))/LU[i,i]
         return x
     if orientation_method == 'col':
-        x = b
         for j in reversed(range(1,n)):
-            x[j] = x[j]/U[j,j]
-            x[:j-1] = sum(x[:j-1]-(x[j]*U[:j-1,j]))
-        x[n] = x[n]/U[n,n]
-        return x
+            U_j = get_LU_vector(LU,'U','col',j)
+            b[j] = b[j]/U_j[j]
+            b[:j] = b[:j]-(b[j]*U_j[:j])
+        b[0] = b[0]/LU[0,0]
+        return b
 
 def solver(b, LU, orientation_method, P=None, Q=None):
-    x = None
-    if orientation_method == 'row':
-        return x
-    if orientation_method == 'col':
-        return x
+    # TODO: Apply permutation matrices to solution
+    y = forward_sub(b, LU, orientation_method)
+    x = backward_sub(y, LU, orientation_method)
+    return x
+
     
-for i in reversed(range(1,n)):
-    print(i)
-    
+#%%
+# test matrix from https://www.mathsisfun.com/algebra/systems-linear-equations-matrices.html
+# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
+# b = np.array([6,-4,27],'float')
+# solution: [5   3   -2]
+
+
+A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
+b = np.array([1,6,4],'float')
+# solution: [1   .5   -.5]
+
+LU = LU_factorization(A, pivot='none')
+L = np.tril(LU)
+np.fill_diagonal(L,1)
+U = np.triu(LU)
+
+y = forward_sub(b, LU, 'col')
+print(y)
+x = backward_sub(y, LU, 'col')
+print(x)
+
+# print(LU)
+
+# x = solver(b, A, 'row')
+# print(x)
