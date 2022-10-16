@@ -123,28 +123,26 @@ A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 # solution: [1   1   1]
 #           [4  -1  -5]
 #           [3  -2 -10]
-# LU = LU_factorization(A, pivot='none')
+pivot='complete'
+# A = LU_factorization(A, pivot)
 # print(LU)
-# LU, P = LU_factorization(A, pivot='partial')
-LU, P, Q = LU_factorization(A, pivot='complete')
-A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
+# A, P = LU_factorization(A, pivot)
+A, P, Q = LU_factorization(A, pivot)
+# A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 
-def get_A_from_LU(LU,row_permuted=False,column_permuted=False,P=None,Q=None):  
-    if row_permuted == False and column_permuted == False:
-        print('Error: Columns cannot be pivoted without rows also being permuted')
-        return
+def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
     L = np.tril(LU)
     np.fill_diagonal(L,1)
     U = np.triu(LU)
     A = mat_mult(L,U)
-    if row_permuted:
+    if pivot!= 'none':
         A = A[P]
-        if column_permuted:
+        if pivot=='complete':
             A = A.T[Q].T
     print(A)
     return
 
-get_A_from_LU(LU,True,True,P,Q)
+get_A_from_LU(A,pivot,P,Q)
 
 #%%
 
@@ -152,19 +150,19 @@ get_A_from_LU(LU,True,True,P,Q)
 def get_LU_vector(LU, lower_or_upper, row_or_col, i):
     if lower_or_upper == 'L':
         if row_or_col == 'row':
-            v = LU[i]
+            v = LU[i].copy()
             v[i] = 1
             v[i+1:] = 0
         elif row_or_col == 'col':
-            v = LU.T[i]
+            v = LU.T[i].copy()
             v[i] = 1
             v[:i] = 0
     elif lower_or_upper == 'U':
         if row_or_col == 'row':
-            v = LU[i]
+            v = LU[i].copy()
             v[:i] = 0
         elif row_or_col == 'col':
-            v = LU.T[i]
+            v = LU.T[i].copy()
             v[i+1:] = 0
     return v
     
@@ -186,14 +184,13 @@ def forward_sub(b, LU, orientation_method):
         return b
     
 def backward_sub(b, LU, orientation_method):
-    # TODO: fix this
     n = b.shape[0]
     if orientation_method == 'row':
         x = np.ndarray(n)
         x[n-1] = b[n-1]/get_LU_vector(LU,'U','row',n-1)[n-1]
         for i in reversed(range(n-1)):
             U_i = get_LU_vector(LU,'U','row',i)
-            x[i] = (b[i]-sum(U_i[i+1:]*x[:i+1]))/LU[i,i]
+            x[i] = (b[i]-sum(U_i[i+1:]*x[i+1:]))/LU[i,i]
         return x
     if orientation_method == 'col':
         for j in reversed(range(1,n)):
@@ -203,10 +200,13 @@ def backward_sub(b, LU, orientation_method):
         b[0] = b[0]/LU[0,0]
         return b
 
-def solver(b, LU, orientation_method, P=None, Q=None):
-    # TODO: Apply permutation matrices to solution
+def solver(b, LU, orientation_method, pivot, P=None, Q=None):
+    if pivot != 'none':
+        b = b[P].copy()
     y = forward_sub(b, LU, orientation_method)
     x = backward_sub(y, LU, orientation_method)
+    if pivot == 'complete':
+        x = x[Q]
     return x
 
     
@@ -216,22 +216,48 @@ def solver(b, LU, orientation_method, P=None, Q=None):
 # b = np.array([6,-4,27],'float')
 # solution: [5   3   -2]
 
-
-A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
-b = np.array([1,6,4],'float')
+# test matrix from https://www.geeksforgeeks.org/l-u-decomposition-system-linear-equations/
+# A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
+# b = np.array([1,6,4],'float')
 # solution: [1   .5   -.5]
 
-LU = LU_factorization(A, pivot='none')
-L = np.tril(LU)
-np.fill_diagonal(L,1)
-U = np.triu(LU)
+# A = np.array([[2,1,0],[-4,0,4],[2,5,10]],'float')
+# b = np.array([3,0,17],'float')
+# solution: [1   1   1]
 
-y = forward_sub(b, LU, 'col')
-print(y)
-x = backward_sub(y, LU, 'col')
+orientation_method = 'row'
+
+# pivot = 'none'
+# A = LU_factorization(A, pivot)
+# x = solver(b, A, orientation_method, pivot)
+
+pivot = 'partial'
+A, P = LU_factorization(A, pivot)
+# b = b[P].copy()
+# y = forward_sub(b, A, orientation_method)
+# x = backward_sub(y, A, orientation_method)
+x = solver(b, A, orientation_method, pivot, P)
+
+A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
+P = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
+Q = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
+test = mat_mult(mat_mult(P,A),Q)
+b = np.array([6,-4,27],'float')
+pivot = 'complete'
+A, P, Q = LU_factorization(A, pivot)
+
+# L = np.tril(A)
+# np.fill_diagonal(L,1)
+# U = np.triu(A)
+# check = mat_mult(L,U)
+# if pivot != 'none':
+#     b = b[P].copy()
+# y = forward_sub(b, A, orientation_method)
+# x = backward_sub(y, A, orientation_method)
+# if pivot == 'complete':
+#     x = x[Q]
+x = solver(b, A, orientation_method, pivot, P, Q)
+
 print(x)
-
-# print(LU)
-
-# x = solver(b, A, 'row')
-# print(x)
+# [[0,1,2]]
+# [1,2,0]
