@@ -92,7 +92,7 @@ def LU_factorization(A, pivot='none'):
             for j in range(k+1, n):
                 for i in range(k+1, n):
                     A[i,j] = A[i,j] - A[i,k]*A[k,j]
-            P = np.array([list(P).index(i) for i in range(n)])
+            # P = np.array([list(P).index(i) for i in range(n)])
         return A, P
     if pivot == 'complete':
         P = np.arange(n)
@@ -113,8 +113,8 @@ def LU_factorization(A, pivot='none'):
             for j in range(k+1, n):
                 for i in range(k+1, n):
                     A[i,j] = A[i,j] - A[i,k]*A[k,j]
-            P = np.array([list(P).index(i) for i in range(n)])
-            Q = np.array([list(Q).index(i) for i in range(n)])
+            # P = np.array([list(P).index(i) for i in range(n)])
+            # Q = np.array([list(Q).index(i) for i in range(n)])
         return A, P, Q
 
 #%%
@@ -127,22 +127,24 @@ pivot='complete'
 # A = LU_factorization(A, pivot)
 # print(LU)
 # A, P = LU_factorization(A, pivot)
-A, P, Q = LU_factorization(A, pivot)
+LU, P, Q = LU_factorization(A, pivot)
 # A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
 
 def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
     L = np.tril(LU)
     np.fill_diagonal(L,1)
     U = np.triu(LU)
-    A = mat_mult(L,U)
+    LU = mat_mult(L,U)
     if pivot!= 'none':
-        A = A[P]
+        P_T = P = np.array([list(P).index(i) for i in range(len(P))])
+        A = LU[P_T]
         if pivot=='complete':
-            A = A.T[Q].T
+            Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
+            A = A.T[Q_T].T
     print(A)
     return
 
-get_A_from_LU(A,pivot,P,Q)
+print(get_A_from_LU(LU,pivot,P,Q))
 
 #%%
 
@@ -206,7 +208,8 @@ def solver(b, LU, orientation_method, pivot, P=None, Q=None):
     y = forward_sub(b, LU, orientation_method)
     x = backward_sub(y, LU, orientation_method)
     if pivot == 'complete':
-        x = x[Q]
+        Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
+        x = x[Q_T]
     return x
 
     
@@ -221,28 +224,29 @@ def solver(b, LU, orientation_method, pivot, P=None, Q=None):
 # b = np.array([1,6,4],'float')
 # solution: [1   .5   -.5]
 
-# A = np.array([[2,1,0],[-4,0,4],[2,5,10]],'float')
-# b = np.array([3,0,17],'float')
+A = np.array([[2,1,0],[-4,0,4],[2,5,10]],'float')
+b = np.array([3,0,17],'float')
 # solution: [1   1   1]
 
 orientation_method = 'row'
+orientation_method = 'col'
 
 # pivot = 'none'
 # A = LU_factorization(A, pivot)
 # x = solver(b, A, orientation_method, pivot)
 
-pivot = 'partial'
-A, P = LU_factorization(A, pivot)
+# pivot = 'partial'
+# A, P = LU_factorization(A, pivot)
 # b = b[P].copy()
 # y = forward_sub(b, A, orientation_method)
 # x = backward_sub(y, A, orientation_method)
-x = solver(b, A, orientation_method, pivot, P)
+# x = solver(b, A, orientation_method, pivot, P)
 
-A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
-P = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
-Q = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
-test = mat_mult(mat_mult(P,A),Q)
-b = np.array([6,-4,27],'float')
+# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
+# P = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
+# Q = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
+# test = mat_mult(mat_mult(P,A),Q)
+# b = np.array([6,-4,27],'float')
 pivot = 'complete'
 A, P, Q = LU_factorization(A, pivot)
 
@@ -261,3 +265,82 @@ x = solver(b, A, orientation_method, pivot, P, Q)
 print(x)
 # [[0,1,2]]
 # [1,2,0]
+
+#%%
+
+# Step 5:
+def M_one_norm(A):
+    m = A.shape[1]
+    max_col_sum = max([sum(abs(A.T[j])) for j in range(m)])
+    return max_col_sum
+
+def M_F_norm(A):
+    n = A.shape[0]
+    F = np.sqrt(sum([sum(A[i]**2) for i in range(n)]))
+    return F
+
+A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
+pivot = 'complete'
+LU, P, Q = LU_factorization(A, pivot)
+
+def PAQ(P, A, Q):
+    return A[P].T[Q].T
+
+def mat_mult_LU(LU):
+    M = LU.copy()
+    for i in range(LU.shape[0]):
+        for j in range(LU.shape[1]):
+            M[i,j] = sum(get_LU_vector(LU,'L','row',i)*get_LU_vector(LU,'U','col',j))
+    return M
+
+# L = np.tril(LU)
+# np.fill_diagonal(L,1)
+# U = np.triu(LU)
+# LU = mat_mult(L,U)
+# Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
+# P_T = np.array([list(P).index(i) for i in range(len(P))])
+# print(mat_mult_LU(LU))
+# print(PAQ(P, A, Q))
+
+print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
+print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
+
+def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
+    M = mat_mult_LU(LU)
+    if pivot != 'none':
+        P_T = P = np.array([list(P).index(i) for i in range(len(P))])
+        M = M[P_T]
+        if pivot =='complete':
+            Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
+            M = M.T[Q_T].T
+    return M
+
+print(get_A_from_LU(LU,pivot,P,Q))
+
+#%%
+
+n = 10
+L = generate_L(n)
+U = generate_U(n)
+A = mat_mult(L,U)
+# print(A)
+x = np.zeros(n)
+for i in range(n):
+    x[i] = rnd.random()
+b = generate_b(A,x)
+
+# pivot = 'none'
+# LU = LU_factorization(A, pivot)
+# print(M_F_norm(A - mat_mult_LU(LU))/M_F_norm(A))
+# print(M_one_norm(A - mat_mult_LU(LU))/M_one_norm(A))
+
+pivot = 'partial'
+LU, P = LU_factorization(A, pivot)
+print(M_F_norm(A[P] - mat_mult_LU(LU))/M_F_norm(A))
+print(M_one_norm(A[P] - mat_mult_LU(LU))/M_one_norm(A))
+
+# pivot = 'complete'
+# LU, P, Q = LU_factorization(A, pivot)
+# print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
+# print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
+
