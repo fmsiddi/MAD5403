@@ -2,6 +2,8 @@
 from tqdm import tqdm
 import numpy as np
 import random as rnd
+import matplotlib.pyplot as plt
+plt.style.use('seaborn')
 
 # Step 1:
 def generate_L(n):
@@ -279,9 +281,9 @@ def M_F_norm(A):
     F = np.sqrt(sum([sum(A[i]**2) for i in range(n)]))
     return F
 
-A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
-pivot = 'complete'
-LU, P, Q = LU_factorization(A, pivot)
+# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
+# pivot = 'complete'
+# LU, P, Q = LU_factorization(A, pivot)
 
 def PAQ(P, A, Q):
     return A[P].T[Q].T
@@ -302,8 +304,8 @@ def mat_mult_LU(LU):
 # print(mat_mult_LU(LU))
 # print(PAQ(P, A, Q))
 
-print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
-print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
+# print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
+# print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
 
 def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
     M = mat_mult_LU(LU)
@@ -315,32 +317,132 @@ def get_A_from_LU(LU,pivot=False,P=None,Q=None):
             M = M.T[Q_T].T
     return M
 
-print(get_A_from_LU(LU,pivot,P,Q))
+# print(get_A_from_LU(LU,pivot,P,Q)-A)
 
 #%%
 
-n = 10
-L = generate_L(n)
-U = generate_U(n)
-A = mat_mult(L,U)
+# n = 10
+# L = generate_L(n)
+# U = generate_U(n)
+# A = mat_mult(L,U)
+
 # print(A)
-x = np.zeros(n)
-for i in range(n):
-    x[i] = rnd.random()
-b = generate_b(A,x)
+# x = np.zeros(n)
+# for i in range(n):
+#     x[i] = rnd.random()
+# b = generate_b(A,x)
 
+# A_copy = A.copy()
 # pivot = 'none'
-# LU = LU_factorization(A, pivot)
-# print(M_F_norm(A - mat_mult_LU(LU))/M_F_norm(A))
-# print(M_one_norm(A - mat_mult_LU(LU))/M_one_norm(A))
+# A_copy = LU_factorization(A_copy, pivot)
+# print(M_F_norm(A - mat_mult_LU(A_copy))/M_F_norm(A))
+# print(M_one_norm(A - mat_mult_LU(A_copy))/M_one_norm(A))
 
-pivot = 'partial'
-LU, P = LU_factorization(A, pivot)
-print(M_F_norm(A[P] - mat_mult_LU(LU))/M_F_norm(A))
-print(M_one_norm(A[P] - mat_mult_LU(LU))/M_one_norm(A))
+def factorization_accuracy_test(trials,pivot):
+    M_F_10 = np.ndarray((trials))
+    M_1_10 = np.ndarray((trials))
+    M_F_100 = np.ndarray((trials))
+    M_1_100 = np.ndarray((trials))
+    for i in tqdm(range(trials), desc='Running factorization accuracy tests for pivot type: {}'.format(pivot)):
+        for n in [10,100]:
+            L = generate_L(n)
+            U = generate_U(n)
+            A = mat_mult(L,U)
+            A_copy = A.copy()
+            if pivot == 'none':
+                A_copy = LU_factorization(A_copy, pivot)
+                P = np.arange(n)
+                Q = np.arange(n)
+            elif pivot == 'partial':
+                A_copy, P = LU_factorization(A_copy, pivot)
+                Q = np.arange(n)
+            elif pivot == 'complete':
+                A_copy, P, Q = LU_factorization(A_copy, pivot)
+            if n == 10:
+                M_F_10[i] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1_10[i] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+            elif n == 100:
+                M_F_100[i] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1_100[i] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+    return M_F_10, M_1_10, M_F_100, M_1_100
 
-# pivot = 'complete'
-# LU, P, Q = LU_factorization(A, pivot)
-# print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
-# print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
+trials = 50
+bins = int(trials/5)
+M_F_10_none, M_1_10_none, M_F_100_none, M_1_100_none = factorization_accuracy_test(trials,'none')
+M_F_10_partial, M_1_10_partial, M_F_100_partial, M_1_100_partial = factorization_accuracy_test(trials,'partial')
+M_F_10_complete, M_1_10_complete, M_F_100_complete, M_1_100_complete = factorization_accuracy_test(trials,'complete')
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
+ax1.hist(M_F_10_none,bins)
+ax1.set_xlabel('Error')
+ax1.set_ylabel('Frequency')
+ax1.set_title('Histogram of Relative F-norm Error Without Pivoting (n = 10)')
+
+ax2.hist(M_F_100_none,bins)
+ax2.set_xlabel('Error')
+ax2.set_ylabel('Frequency')
+ax2.set_title('Histogram of Relative F-norm Error Without Pivoting (n = 100)')
+
+ax3.hist(M_1_10_none,bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('Histogram of Relative 1-norm Error Without Pivoting (n = 10)')
+
+ax4.hist(M_1_100_none,bins)
+ax4.set_xlabel('Error')
+ax4.set_ylabel('Frequency')
+ax4.set_title('Histogram of Relative 1-norm Error Without Pivoting (n = 100)')
+
+plt.show()
+
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
+ax1.hist(M_F_10_partial,bins)
+ax1.set_xlabel('Error')
+ax1.set_ylabel('Frequency')
+ax1.set_title('Histogram of Relative F-norm Error With Partial Pivoting (n = 10)')
+
+ax2.hist(M_F_100_partial,bins)
+ax2.set_xlabel('Error')
+ax2.set_ylabel('Frequency')
+ax2.set_title('Histogram of Relative F-norm Error With Partial Pivoting (n = 100)')
+
+ax3.hist(M_1_10_partial,bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('Histogram of Relative 1-norm Error With Partial Pivoting (n = 10)')
+
+ax4.hist(M_1_100_partial,bins)
+ax4.set_xlabel('Error')
+ax4.set_ylabel('Frequency')
+ax4.set_title('Histogram of Relative 1-norm Error With Partial Pivoting (n = 100)')
+
+plt.show()
+
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
+ax1.hist(M_F_10_complete,bins)
+ax1.set_xlabel('Error')
+ax1.set_ylabel('Frequency')
+ax1.set_title('Histogram of Relative F-norm Error With Complete Pivoting (n = 10)')
+
+ax2.hist(M_F_100_complete,bins)
+ax2.set_xlabel('Error')
+ax2.set_ylabel('Frequency')
+ax2.set_title('Histogram of Relative F-norm Error With Complete Pivoting (n = 100)')
+
+ax3.hist(M_1_10_complete,bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('Histogram of Relative 1-norm Error With Complete Pivoting (n = 10)')
+
+ax4.hist(M_1_100_complete,bins)
+ax4.set_xlabel('Error')
+ax4.set_ylabel('Frequency')
+ax4.set_title('Histogram of Relative 1-norm Error With Complete Pivoting (n = 100)')
+
+plt.show()
 
