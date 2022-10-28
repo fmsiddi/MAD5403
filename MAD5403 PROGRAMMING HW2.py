@@ -11,7 +11,7 @@ def generate_L(n):
     np.fill_diagonal(L,1)
     for i in range(1,n):
         for j in range(i):
-            L[i,j] = rnd.random()
+            L[i,j] = rnd.choice([1,-1]) * rnd.random()
     return L
 
 def generate_U(n):
@@ -21,42 +21,17 @@ def generate_U(n):
     U = L.T
     return U
 
-def mat_mult(L,U):
-    if len(U.shape) > 1:
-        A = np.zeros((L.shape[0],U.shape[1]))
-        for i in range(L.shape[0]):
-            for j in range(U.shape[1]):
-                A[i,j] = sum(L[i] * U.T[j])
+def mat_mult(A,B):
+    if len(B.shape) > 1:
+        M = np.zeros((A.shape[0],B.shape[1]))
+        for i in range(A.shape[0]):
+            for j in range(B.shape[1]):
+                M[i,j] = sum(A[i] * B.T[j])
     else:
-        A = np.zeros(L.shape[0])
-        for i in range(L.shape[1]):
-            A[i] = sum(L[i] * U)
-    return A
-
-n = 10
-L = generate_L(n)
-U = generate_U(n)
-
-A = mat_mult(L,U)
-# np.fill_diagonal(A,np.diagonal(A)+5) # making diagonally dominant
-
-#%%
-
-# Step 2:
-def generate_b(A,x):
-    b = mat_mult(A,x)
-    return b
-
-x = np.zeros(n)
-for i in range(n):
-    x[i] = rnd.random()
-    
-b = generate_b(A,x)
-
-# testing multiplying a matrix by a vector
-# A = np.array([[4,3],[6,3]])
-# x = np.array([3,3])
-# b = generate_b(A,x)
+        M = np.zeros(A.shape[0])
+        for i in range(A.shape[1]):
+            M[i] = sum(A[i] * B)
+    return M
 
 #%%
 
@@ -118,35 +93,6 @@ def LU_factorization(A, pivot='none'):
             # P = np.array([list(P).index(i) for i in range(n)])
             # Q = np.array([list(Q).index(i) for i in range(n)])
         return A, P, Q
-
-#%%
-# test matrix from https://www.geeksforgeeks.org/l-u-decomposition-system-linear-equations/
-A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
-# solution: [1   1   1]
-#           [4  -1  -5]
-#           [3  -2 -10]
-pivot='complete'
-# A = LU_factorization(A, pivot)
-# print(LU)
-# A, P = LU_factorization(A, pivot)
-LU, P, Q = LU_factorization(A, pivot)
-# A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
-
-def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
-    L = np.tril(LU)
-    np.fill_diagonal(L,1)
-    U = np.triu(LU)
-    LU = mat_mult(L,U)
-    if pivot!= 'none':
-        P_T = P = np.array([list(P).index(i) for i in range(len(P))])
-        A = LU[P_T]
-        if pivot=='complete':
-            Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
-            A = A.T[Q_T].T
-    print(A)
-    return
-
-print(get_A_from_LU(LU,pivot,P,Q))
 
 #%%
 
@@ -214,60 +160,6 @@ def solver(b, LU, orientation_method, pivot, P=None, Q=None):
         x = x[Q_T]
     return x
 
-    
-#%%
-# test matrix from https://www.mathsisfun.com/algebra/systems-linear-equations-matrices.html
-# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
-# b = np.array([6,-4,27],'float')
-# solution: [5   3   -2]
-
-# test matrix from https://www.geeksforgeeks.org/l-u-decomposition-system-linear-equations/
-# A = np.array([[1,1,1],[4,3,-1],[3,5,3]],'float')
-# b = np.array([1,6,4],'float')
-# solution: [1   .5   -.5]
-
-A = np.array([[2,1,0],[-4,0,4],[2,5,10]],'float')
-b = np.array([3,0,17],'float')
-# solution: [1   1   1]
-
-orientation_method = 'row'
-orientation_method = 'col'
-
-# pivot = 'none'
-# A = LU_factorization(A, pivot)
-# x = solver(b, A, orientation_method, pivot)
-
-# pivot = 'partial'
-# A, P = LU_factorization(A, pivot)
-# b = b[P].copy()
-# y = forward_sub(b, A, orientation_method)
-# x = backward_sub(y, A, orientation_method)
-# x = solver(b, A, orientation_method, pivot, P)
-
-# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
-# P = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
-# Q = np.array([[0,0,1],[1,0,0],[0,1,0]],'float')
-# test = mat_mult(mat_mult(P,A),Q)
-# b = np.array([6,-4,27],'float')
-pivot = 'complete'
-A, P, Q = LU_factorization(A, pivot)
-
-# L = np.tril(A)
-# np.fill_diagonal(L,1)
-# U = np.triu(A)
-# check = mat_mult(L,U)
-# if pivot != 'none':
-#     b = b[P].copy()
-# y = forward_sub(b, A, orientation_method)
-# x = backward_sub(y, A, orientation_method)
-# if pivot == 'complete':
-#     x = x[Q]
-x = solver(b, A, orientation_method, pivot, P, Q)
-
-print(x)
-# [[0,1,2]]
-# [1,2,0]
-
 #%%
 
 # Step 5:
@@ -281,10 +173,6 @@ def M_F_norm(A):
     F = np.sqrt(sum([sum(A[i]**2) for i in range(n)]))
     return F
 
-# A = np.array([[1,1,1],[0,2,5],[2,5,-1]],'float')
-# pivot = 'complete'
-# LU, P, Q = LU_factorization(A, pivot)
-
 def PAQ(P, A, Q):
     return A[P].T[Q].T
 
@@ -295,17 +183,23 @@ def mat_mult_LU(LU):
             M[i,j] = sum(get_LU_vector(LU,'L','row',i)*get_LU_vector(LU,'U','col',j))
     return M
 
-# L = np.tril(LU)
-# np.fill_diagonal(L,1)
-# U = np.triu(LU)
-# LU = mat_mult(L,U)
-# Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
-# P_T = np.array([list(P).index(i) for i in range(len(P))])
-# print(mat_mult_LU(LU))
-# print(PAQ(P, A, Q))
+def v_1_norm(v):
+    return sum(abs(v))
 
-# print(M_F_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_F_norm(A))
-# print(M_one_norm(PAQ(P, A, Q) - mat_mult_LU(LU))/M_one_norm(A))
+def v_2_norm(v):
+    return np.sqrt(sum(v**2))
+
+def generate_x(n):
+    x = np.zeros(n)
+    for i in range(n):
+        x[i] = rnd.random()
+    while v_1_norm(x) < 1 or v_2_norm(x) < 1:
+        x = x*1.5 
+    return x
+
+def generate_b(A,x):
+    b = mat_mult(A,x)
+    return b
 
 def get_A_from_LU(LU,pivot=False,P=None,Q=None):  
     M = mat_mult_LU(LU)
@@ -317,38 +211,24 @@ def get_A_from_LU(LU,pivot=False,P=None,Q=None):
             M = M.T[Q_T].T
     return M
 
-# print(get_A_from_LU(LU,pivot,P,Q)-A)
-
 #%%
 
-# n = 10
-# L = generate_L(n)
-# U = generate_U(n)
-# A = mat_mult(L,U)
-
-# print(A)
-# x = np.zeros(n)
-# for i in range(n):
-#     x[i] = rnd.random()
-# b = generate_b(A,x)
-
-# A_copy = A.copy()
-# pivot = 'none'
-# A_copy = LU_factorization(A_copy, pivot)
-# print(M_F_norm(A - mat_mult_LU(A_copy))/M_F_norm(A))
-# print(M_one_norm(A - mat_mult_LU(A_copy))/M_one_norm(A))
-
-def factorization_accuracy_test(trials,pivot):
-    M_F_10 = np.ndarray((trials))
-    M_1_10 = np.ndarray((trials))
-    M_F_100 = np.ndarray((trials))
-    M_1_100 = np.ndarray((trials))
-    for i in tqdm(range(trials), desc='Running factorization accuracy tests for pivot type: {}'.format(pivot)):
+def accuracy_test(trials,pivot):
+    M_F = np.ndarray((trials,2))
+    M_1 = np.ndarray((trials,2))
+    x_1 = np.ndarray((trials,2))
+    x_2 = np.ndarray((trials,2))
+    r_1 = np.ndarray((trials,2))
+    r_2 = np.ndarray((trials,2))
+    for i in tqdm(range(trials), desc="Running accuracy tests for pivot type: '{}'".format(pivot)):
         for n in [10,100]:
             L = generate_L(n)
             U = generate_U(n)
             A = mat_mult(L,U)
             A_copy = A.copy()
+            x = generate_x(n)
+            b = generate_b(A,x)
+            b_copy = b.copy()
             if pivot == 'none':
                 A_copy = LU_factorization(A_copy, pivot)
                 P = np.arange(n)
@@ -358,91 +238,220 @@ def factorization_accuracy_test(trials,pivot):
                 Q = np.arange(n)
             elif pivot == 'complete':
                 A_copy, P, Q = LU_factorization(A_copy, pivot)
+            x̃ = solver(b_copy, A_copy, 'col', pivot, P, Q)
+            r = b - mat_mult(A,x̃)
             if n == 10:
-                M_F_10[i] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
-                M_1_10[i] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+                M_F[i,0] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1[i,0] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+                x_1[i,0] = v_1_norm(x - x̃)/v_1_norm(x)
+                x_2[i,0] = v_2_norm(x - x̃)/v_2_norm(x)
+                r_1[i,0] = v_1_norm(r)/v_1_norm(b)
+                r_2[i,0] = v_2_norm(r)/v_2_norm(b)
             elif n == 100:
-                M_F_100[i] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
-                M_1_100[i] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
-    return M_F_10, M_1_10, M_F_100, M_1_100
+                M_F[i,1] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1[i,1] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+                x_1[i,1] = v_1_norm(x - x̃)/v_1_norm(x)
+                x_2[i,1] = v_2_norm(x - x̃)/v_2_norm(x)
+                r_1[i,1] = v_1_norm(r)/v_1_norm(b)
+                r_2[i,1] = v_2_norm(r)/v_2_norm(b)
+    return M_F, M_1, x_1, x_2, r_1, r_2
 
 trials = 50
 bins = int(trials/5)
-M_F_10_none, M_1_10_none, M_F_100_none, M_1_100_none = factorization_accuracy_test(trials,'none')
-M_F_10_partial, M_1_10_partial, M_F_100_partial, M_1_100_partial = factorization_accuracy_test(trials,'partial')
-M_F_10_complete, M_1_10_complete, M_F_100_complete, M_1_100_complete = factorization_accuracy_test(trials,'complete')
+M_F_none, M_1_none, x_1_none, x_2_none, r_1_none, r_2_none = accuracy_test(trials,'none')
+M_F_partial, M_1_partial, x_1_partial, x_2_partial, r_1_partial, r_2_partial = accuracy_test(trials,'partial')
+M_F_complete, M_1_complete, x_1_complete, x_2_complete, r_1_complete, r_2_complete = accuracy_test(trials,'complete')
 
+#%%
 # GRAPHING HISTOGRAM USING PYPLOT
-f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
-ax1.hist(M_F_10_none,bins)
-ax1.set_xlabel('Error')
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error Without Pivoting', fontsize=16)
+ax1.hist(M_F_none[:,0],bins)
 ax1.set_ylabel('Frequency')
-ax1.set_title('Histogram of Relative F-norm Error Without Pivoting (n = 10)')
+ax1.set_title('F-norm (n = 10)')
 
-ax2.hist(M_F_100_none,bins)
-ax2.set_xlabel('Error')
-ax2.set_ylabel('Frequency')
-ax2.set_title('Histogram of Relative F-norm Error Without Pivoting (n = 100)')
+ax2.hist(M_F_none[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
 
-ax3.hist(M_1_10_none,bins)
+ax3.hist(M_1_none[:,0],bins)
 ax3.set_xlabel('Error')
 ax3.set_ylabel('Frequency')
-ax3.set_title('Histogram of Relative 1-norm Error Without Pivoting (n = 10)')
+ax3.set_title('1-norm (n = 10)')
 
-ax4.hist(M_1_100_none,bins)
+ax4.hist(M_1_none[:,1],bins)
 ax4.set_xlabel('Error')
-ax4.set_ylabel('Frequency')
-ax4.set_title('Histogram of Relative 1-norm Error Without Pivoting (n = 100)')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error With Partial Pivoting', fontsize=16)
+ax1.hist(M_F_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('F-norm (n = 10)')
+
+ax2.hist(M_F_partial[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
+
+ax3.hist(M_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(M_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error With Complete Pivoting', fontsize=16)
+ax1.hist(M_F_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('F-norm (n = 10)')
+
+ax2.hist(M_F_complete[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
+
+ax3.hist(M_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(M_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
 
 plt.show()
 
 
+
 # GRAPHING HISTOGRAM USING PYPLOT
-f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
-ax1.hist(M_F_10_partial,bins)
-ax1.set_xlabel('Error')
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Solution Error Without Pivoting', fontsize=16)
+ax1.hist(x_2_none[:,0],bins)
 ax1.set_ylabel('Frequency')
-ax1.set_title('Histogram of Relative F-norm Error With Partial Pivoting (n = 10)')
+ax1.set_title('2-norm (n = 10)')
 
-ax2.hist(M_F_100_partial,bins)
-ax2.set_xlabel('Error')
-ax2.set_ylabel('Frequency')
-ax2.set_title('Histogram of Relative F-norm Error With Partial Pivoting (n = 100)')
+ax2.hist(x_2_none[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
 
-ax3.hist(M_1_10_partial,bins)
+ax3.hist(x_1_none[:,0],bins)
 ax3.set_xlabel('Error')
 ax3.set_ylabel('Frequency')
-ax3.set_title('Histogram of Relative 1-norm Error With Partial Pivoting (n = 10)')
+ax3.set_title('1-norm (n = 10)')
 
-ax4.hist(M_1_100_partial,bins)
+ax4.hist(x_1_none[:,1],bins)
 ax4.set_xlabel('Error')
-ax4.set_ylabel('Frequency')
-ax4.set_title('Histogram of Relative 1-norm Error With Partial Pivoting (n = 100)')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Solution Error With Partial Pivoting', fontsize=16)
+ax1.hist(x_2_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(x_2_partial[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(x_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(x_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Solution Error With Complete Pivoting', fontsize=16)
+ax1.hist(x_2_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(x_2_complete[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(x_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(x_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
 
 plt.show()
 
 
+
 # GRAPHING HISTOGRAM USING PYPLOT
-f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2)
-ax1.hist(M_F_10_complete,bins)
-ax1.set_xlabel('Error')
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error Without Pivoting', fontsize=16)
+ax1.hist(r_2_none[:,0],bins)
 ax1.set_ylabel('Frequency')
-ax1.set_title('Histogram of Relative F-norm Error With Complete Pivoting (n = 10)')
+ax1.set_title('2-norm (n = 10)')
 
-ax2.hist(M_F_100_complete,bins)
-ax2.set_xlabel('Error')
-ax2.set_ylabel('Frequency')
-ax2.set_title('Histogram of Relative F-norm Error With Complete Pivoting (n = 100)')
+ax2.hist(r_2_none[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
 
-ax3.hist(M_1_10_complete,bins)
+ax3.hist(r_1_none[:,0],bins)
 ax3.set_xlabel('Error')
 ax3.set_ylabel('Frequency')
-ax3.set_title('Histogram of Relative 1-norm Error With Complete Pivoting (n = 10)')
+ax3.set_title('1-norm (n = 10)')
 
-ax4.hist(M_1_100_complete,bins)
+ax4.hist(r_1_none[:,1],bins)
 ax4.set_xlabel('Error')
-ax4.set_ylabel('Frequency')
-ax4.set_title('Histogram of Relative 1-norm Error With Complete Pivoting (n = 100)')
+ax4.set_title('1-norm (n = 100)')
 
 plt.show()
 
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error With Partial Pivoting', fontsize=16)
+ax1.hist(r_2_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(r_2_partial[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(r_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(r_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error With Complete Pivoting', fontsize=16)
+ax1.hist(r_2_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(r_2_complete[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(r_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(r_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
