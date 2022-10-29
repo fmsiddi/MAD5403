@@ -8,20 +8,30 @@ plt.style.use('seaborn')
 # Step 1:
 def generate_L(n):
     L = np.zeros((n,n))
-    np.fill_diagonal(L,1)
+    np.fill_diagonal(L,1) # UNITARY DIAGONAL
     for i in range(1,n):
         for j in range(i):
-            L[i,j] = rnd.choice([1,-1]) * rnd.random()
+            L[i,j] = rnd.choice([1,-1]) * rnd.random() # rnd.random() ONLY GENERATES FLOATS < |1|
+    return L
+
+def generate_positive_L(n):
+    L = np.zeros((n,n))
+    np.fill_diagonal(L,1) # UNITARY DIAGONAL
+    for i in range(1,n):
+        for j in range(i):
+            L[i,j] = rnd.random() # rnd.random() ONLY GENERATES FLOATS < |1|
     return L
 
 def generate_U(n):
     L = generate_L(n)
-    np.fill_diagonal(L,rnd.choices(range(2,5), k=n))
-    # np.fill_diagonal(L,np.diagonal(L)+1)
+    np.fill_diagonal(L,rnd.choices(range(2,5), k=n)) # ENSURES DIAGONAL ELEMENTS AREN'T TOO SMALL COMPARED TO NON-ZERO ELEMENTS
     U = L.T
     return U
 
-def mat_mult(A,B):
+#%%
+
+# Step 3:
+def mat_mult(A,B): # MATRIX MULTIPLICATION ROUTINE
     if len(B.shape) > 1:
         M = np.zeros((A.shape[0],B.shape[1]))
         for i in range(A.shape[0]):
@@ -33,90 +43,89 @@ def mat_mult(A,B):
             M[i] = sum(A[i] * B)
     return M
 
-#%%
-
-# Step 3:
-def index_flip(array,i,j):
+def index_flip(array,i,j): # TAKES ARRAY AND SWAPS iTH ELEMENT WITH jTH ELEMENT
     out = array
     out[[i,j]] = out[[j,i]]
     return out
 
-def LU_factorization(A, pivot='none'):
-    n = A.shape[0]
-    if pivot == 'none':
+def LU_factorization(A, pivot='none'): # FACTORIZATION TAKES MATRIX A AND PIVOT METHOD
+    n = A.shape[0] # EXTRACT NUMBER OF ROWS
+    if pivot == 'none': # WITHOUT PIVOTING
         for k in range(n-1):
-            if A[k,k] == 0:
+            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
                 print('Error: diagonal element of 0 encountered')
                 print('Try partial pivoting')
                 break
-            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
             for j in range(k+1, n):
                 for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j]
-        return A
-    if pivot == 'partial':
-        P = np.arange(n)
+                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
+        return A # RETURN COMPOSITE LU MATRIX
+    
+    if pivot == 'partial': # WITH PARTIAL PIVOTING
+        P = np.arange(n) # INITIALIZE ROW PERMUTATION ARRAY
         for k in range(n-1):
-            p_index = abs(A[k:,k]).argmax() + k
+            p_index = abs(A[k:,k]).argmax() + k # FIND INDEX OF ROW WITH LARGEST PIVOT VALUE
             if p_index - k > 0:
-                P[[k,p_index]] = P[[p_index,k]]
-                A = A[index_flip(np.arange(n),k,p_index)]
-            if A[k,k] == 0:
+                P[[k,p_index]] = P[[p_index,k]] # RECORD ROW PERMUTATION
+                A = A[index_flip(np.arange(n),k,p_index)] # PERMUTE A BY P
+            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
                 print('Error: diagonal element of 0 encountered')
                 print('Try complete pivoting')
                 break
-            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
             for j in range(k+1, n):
                 for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j]
-            # P = np.array([list(P).index(i) for i in range(n)])
-        return A, P
-    if pivot == 'complete':
-        P = np.arange(n)
-        Q = np.arange(n)
+                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
+        return A, P # RETURN COMPOSITE LU MATRIX AND PERMUTATION ARRAY
+    
+    if pivot == 'complete': # WITH COMPLETE PIVOTING
+        P = np.arange(n) # INITIALIZE ROW PERMUTATION ARRAY
+        Q = np.arange(n) # INITIALIZE COLUMN PERMUTATION ARRAY
         for k in range(n-1):
-            p_index = abs(A[k:,k:]).argmax() // A[k:,k:].shape[0] + k
-            q_index = abs(A[k:,k:].T).argmax() // A[k:,k:].shape[1] + k
+            p_index = abs(A[k:,k:]).argmax() // A[k:,k:].shape[0] + k # FIND INDEX OF ROW WITH LARGEST PIVOT VALUE
+            q_index = abs(A[k:,k:].T).argmax() // A[k:,k:].shape[1] + k # FIND INDEX OF COLUMN WITH LARGEST PIVOT VALUE
             if p_index - k > 0:
-                P[[k,p_index]] = P[[p_index,k]]
-                A = A[index_flip(np.arange(n),k,p_index)]
+                P[[k,p_index]] = P[[p_index,k]] # RECORD ROW PERMUTATION
+                A = A[index_flip(np.arange(n),k,p_index)] # PERMUTE A BY P
             if q_index - k > 0:
-                Q[[k,q_index]] = Q[[q_index,k]]
-                A = A.T[index_flip(np.arange(n),k,q_index)].T
-            if A[k,k] == 0:
+                Q[[k,q_index]] = Q[[q_index,k]] # RECORD COLUMN PERMUTATION
+                A = A.T[index_flip(np.arange(n),k,q_index)].T # PERMUTE A BY Q
+            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
                 print('Error: matrix is singular, LU factorization does not exist')
                 break
-            A[k+1:, k] = A[k+1:, k]/A[k,k]
+            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
             for j in range(k+1, n):
                 for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j]
-            # P = np.array([list(P).index(i) for i in range(n)])
-            # Q = np.array([list(Q).index(i) for i in range(n)])
-        return A, P, Q
+                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
+        return A, P, Q # RETURN COMPOSITE LU MATRIX AND PERMUTATION ARRAYS
 
 #%%
 
 # Step 4:
+# TAKES COMPOSITE LU MATRIX AND EXTRACTS WHAT THE iTH ROW OR COLUMN WOULD BE FOR L OR U
+# THIS METHOD IS NEEDED SO WE CAN PERFORM THE NECESSARY COMPUTATIONS WITH L AND U WITHOUT EVER
+# ALLOCATING MEMORY FOR A FULL VERSION OF L OR U
 def get_LU_vector(LU, lower_or_upper, row_or_col, i):
     if lower_or_upper == 'L':
         if row_or_col == 'row':
-            v = LU[i].copy()
-            v[i] = 1
-            v[i+1:] = 0
+            v = LU[i].copy() # EXTRACT iTH ROW OF COMPOSITE LU
+            v[i] = 1 # DIAGONAL ELEMENTS OF L ARE 1
+            v[i+1:] = 0 # SUPER DIAGONAL ELEMENTS OF L ARE 0
         elif row_or_col == 'col':
-            v = LU.T[i].copy()
-            v[i] = 1
-            v[:i] = 0
+            v = LU.T[i].copy() # EXTRACT iTH COLUMN OF COMPOSITE LU
+            v[i] = 1 # DIAGONAL ELEMENTS OF L ARE 1
+            v[:i] = 0 # SUPER DIAGONAL ELEMENTS OF L ARE 0
     elif lower_or_upper == 'U':
         if row_or_col == 'row':
-            v = LU[i].copy()
-            v[:i] = 0
+            v = LU[i].copy() # EXTRACT iTH ROW OF COMPOSITE LU
+            v[:i] = 0 # SUB DIAGONAL ELEMENTS OF U ARE 0
         elif row_or_col == 'col':
-            v = LU.T[i].copy()
-            v[i+1:] = 0
+            v = LU.T[i].copy() # EXTRACT iTH COLUMN OF COMPOSITE LU
+            v[i+1:] = 0 # SUB DIAGONAL ELEMENTS OF U ARE 0
     return v
     
-def forward_sub(b, LU, orientation_method):
+def forward_sub(b, LU, orientation_method): # SOLVES Ly = b FOR BOTH ROW/COLUMN ORIENTED METHODS
     n = b.shape[0]
     if orientation_method == 'row':
         y = np.ndarray(n)
@@ -133,7 +142,7 @@ def forward_sub(b, LU, orientation_method):
         b[n-1] = b[n-1]
         return b
     
-def backward_sub(b, LU, orientation_method):
+def backward_sub(b, LU, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN ORIENTED METHODS
     n = b.shape[0]
     if orientation_method == 'row':
         x = np.ndarray(n)
@@ -150,7 +159,7 @@ def backward_sub(b, LU, orientation_method):
         b[0] = b[0]/LU[0,0]
         return b
 
-def solver(b, LU, orientation_method, pivot, P=None, Q=None):
+def solver(b, LU, orientation_method, pivot, P=None, Q=None): # SOLVES LINEAR SYSTEM USING LU FACTORIZATION AND PERMUTATION ARRAYS
     if pivot != 'none':
         b = b[P].copy()
     y = forward_sub(b, LU, orientation_method)
@@ -261,6 +270,7 @@ bins = int(trials/20)
 M_F_none, M_1_none, x_1_none, x_2_none, r_1_none, r_2_none = accuracy_test(trials,'none')
 M_F_partial, M_1_partial, x_1_partial, x_2_partial, r_1_partial, r_2_partial = accuracy_test(trials,'partial')
 M_F_complete, M_1_complete, x_1_complete, x_2_complete, r_1_complete, r_2_complete = accuracy_test(trials,'complete')
+print('\n')
 
 #%%
 # GRAPHING HISTOGRAM USING PYPLOT
@@ -457,6 +467,251 @@ ax4.set_title('1-norm (n = 100)')
 plt.show()
 
 #%%
+
+def SPD_accuracy_test(trials,pivot):
+    M_F = np.ndarray((trials,2))
+    M_1 = np.ndarray((trials,2))
+    x_1 = np.ndarray((trials,2))
+    x_2 = np.ndarray((trials,2))
+    r_1 = np.ndarray((trials,2))
+    r_2 = np.ndarray((trials,2))
+    for i in tqdm(range(trials), desc="Running SPD accuracy tests for pivot type: '{}'".format(pivot)):
+        for n in [10,100]:
+            L = generate_positive_L(n)
+            A = mat_mult(L,L.T)
+            A_copy = A.copy()
+            x = generate_x(n)
+            b = generate_b(A,x)
+            b_copy = b.copy()
+            if pivot == 'none':
+                A_copy = LU_factorization(A_copy, pivot)
+                P = np.arange(n)
+                Q = np.arange(n)
+            elif pivot == 'partial':
+                A_copy, P = LU_factorization(A_copy, pivot)
+                Q = np.arange(n)
+            elif pivot == 'complete':
+                A_copy, P, Q = LU_factorization(A_copy, pivot)
+            x̃ = solver(b_copy, A_copy, 'row', pivot, P, Q)
+            r = b - mat_mult(A,x̃)
+            if n == 10:
+                M_F[i,0] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1[i,0] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+                x_1[i,0] = v_1_norm(x - x̃)/v_1_norm(x)
+                x_2[i,0] = v_2_norm(x - x̃)/v_2_norm(x)
+                r_1[i,0] = v_1_norm(r)/v_1_norm(b)
+                r_2[i,0] = v_2_norm(r)/v_2_norm(b)
+            elif n == 100:
+                M_F[i,1] = M_F_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_F_norm(A)
+                M_1[i,1] = M_one_norm(PAQ(P, A, Q) - mat_mult_LU(A_copy))/M_one_norm(A)
+                x_1[i,1] = v_1_norm(x - x̃)/v_1_norm(x)
+                x_2[i,1] = v_2_norm(x - x̃)/v_2_norm(x)
+                r_1[i,1] = v_1_norm(r)/v_1_norm(b)
+                r_2[i,1] = v_2_norm(r)/v_2_norm(b)
+    return M_F, M_1, x_1, x_2, r_1, r_2
+
+trials = 500
+bins = int(trials/20)
+SPD_M_F_none, SPD_M_1_none, SPD_x_1_none, SPD_x_2_none, SPD_r_1_none, SPD_r_2_none = SPD_accuracy_test(trials,'none')
+SPD_M_F_partial, SPD_M_1_partial, SPD_x_1_partial, SPD_x_2_partial, SPD_r_1_partial, SPD_r_2_partial = SPD_accuracy_test(trials,'partial')
+SPD_M_F_complete, SPD_M_1_complete, SPD_x_1_complete, SPD_x_2_complete, SPD_r_1_complete, SPD_r_2_complete = SPD_accuracy_test(trials,'complete')
+print('\n')
+
+#%%
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error Without Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_M_F_none[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('F-norm (n = 10)')
+
+ax2.hist(SPD_M_F_none[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
+
+ax3.hist(SPD_M_1_none[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_M_1_none[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error With Partial Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_M_F_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('F-norm (n = 10)')
+
+ax2.hist(SPD_M_F_partial[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
+
+ax3.hist(SPD_M_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_M_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Factorization Error With Complete Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_M_F_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('F-norm (n = 10)')
+
+ax2.hist(SPD_M_F_complete[:,1],bins)
+ax2.set_title('F-norm (n = 100)')
+
+ax3.hist(SPD_M_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_M_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True)
+f1.suptitle('Relative Solution Error Without Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_x_2_none[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_x_2_none[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_x_1_none[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_x_1_none[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True)
+f1.suptitle('Relative Solution Error With Partial Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_x_2_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_x_2_partial[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_x_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_x_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True)
+f1.suptitle('Relative Solution Error With Complete Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_x_2_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_x_2_complete[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_x_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_x_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error Without Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_r_2_none[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_r_2_none[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_r_1_none[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_r_1_none[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error With Partial Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_r_2_partial[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_r_2_partial[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_r_1_partial[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_r_1_partial[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey=True, sharex=True)
+f1.suptitle('Relative Residual Error With Complete Pivoting (SPD)', fontsize=16)
+ax1.hist(SPD_r_2_complete[:,0],bins)
+ax1.set_ylabel('Frequency')
+ax1.set_title('2-norm (n = 10)')
+
+ax2.hist(SPD_r_2_complete[:,1],bins)
+ax2.set_title('2-norm (n = 100)')
+
+ax3.hist(SPD_r_1_complete[:,0],bins)
+ax3.set_xlabel('Error')
+ax3.set_ylabel('Frequency')
+ax3.set_title('1-norm (n = 10)')
+
+ax4.hist(SPD_r_1_complete[:,1],bins)
+ax4.set_xlabel('Error')
+ax4.set_title('1-norm (n = 100)')
+
+plt.show()
+
+#%%
 # A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
 # b = np.array([3,0,17])
 # pivot = 'none'
@@ -474,7 +729,7 @@ LU_p, p = LU_factorization(A, pivot)
 x_p = solver(b, LU_p, 'row', pivot, p)
 print('Composite LU Matrix with partial pivoting:')
 print(LU_p,'\n')
-print('Pivot vector:')
+print('Pivot vector p:')
 print(p,'\n')
 print('Solution x_p:')
 print(x_p,'\n')
