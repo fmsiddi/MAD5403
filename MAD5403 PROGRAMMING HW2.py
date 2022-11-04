@@ -712,21 +712,23 @@ ax4.set_title('1-norm (n = 100)')
 plt.show()
 
 #%%
-# A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
-# b = np.array([3,0,17])
-# pivot = 'none'
-# LU = LU_factorization(A, pivot)
-# x = solver(b, LU, 'row', pivot)
-# print('Composite LU Matrix without pivoting:')
-# print(LU,'\n')
-# print('Solution x:')
-# print(x,'\n')
+A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
+b = np.array([3,0,17],'float')
+orientation = 'row'
+
+pivot = 'none'
+LU = LU_factorization(A, pivot)
+x = solver(b, LU, orientation, pivot)
+print('Composite LU Matrix without pivoting:')
+print(LU,'\n')
+print('Solution x:')
+print(x,'\n')
 
 A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
-b = np.array([3,0,17])
+b = np.array([3,0,17],'float')
 pivot = 'partial'
 LU_p, p = LU_factorization(A, pivot)
-x_p = solver(b, LU_p, 'row', pivot, p)
+x_p = solver(b, LU_p, orientation, pivot, p)
 print('Composite LU Matrix with partial pivoting:')
 print(LU_p,'\n')
 print('Pivot vector p:')
@@ -735,11 +737,11 @@ print('Solution x_p:')
 print(x_p,'\n')
 
 A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
-b = np.array([3,0,17])
+b = np.array([3,0,17],'float')
 pivot = 'complete'
 LU_c, p, q = LU_factorization(A, pivot)
 # print(get_A_from_LU(LU_c,pivot,p,q))
-x_c = solver(b, LU_c, 'row', pivot, p, q)
+x_c = solver(b, LU_c, orientation, pivot, p, q)
 print('Composite LU Matrix with complete pivoting:')
 print(LU_c,'\n')
 print('Pivot vector p:')
@@ -748,3 +750,39 @@ print('Pivot vector q:')
 print(q,'\n')
 print('Solution x_c:')
 print(x_c)
+
+#%%
+import time
+
+def row_v_column(trials,n):
+    times = np.ndarray((trials,2))
+    for i in tqdm(range(trials), desc='Running row vs. col'):
+        L = generate_L(n)
+        x = generate_x(n)
+        b = generate_b(L,x)
+        b_copy = b.copy()
+        for orientation in ['row','col']:
+            start = time.time()
+            x = forward_sub(b_copy, L, orientation) 
+            end = time.time()
+            if orientation == 'row':
+                times[i,0] = end - start
+            else:
+                times[i,1] = end - start
+    return times
+
+trials = 1000
+n = 500
+
+times = row_v_column(trials,n)
+
+#%%
+f1, ax1 = plt.subplots()
+ax1.hist(times[:,0],bins=20,label='Row-oriented')
+ax1.hist(times[:,1],bins=10,label='Column-oriented')
+ax1.set_xlabel('Time')
+ax1.set_ylabel('Frequency')
+ax1.set_title('Forward Substitution Times for {}x{} Matrix ({} trials)'.format(n,n,trials))
+ax1.legend(prop={'size': 12})
+
+plt.show()
