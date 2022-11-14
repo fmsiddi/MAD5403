@@ -225,23 +225,19 @@ def get_A_from_LU(LU,pivot,P=None,Q=None):
 #%%
 def steepest_descent(A,P,b,tol):
     n = len(b)
-    P_copy = P.copy()
     x = np.ndarray((n))
+    LU, p, q = LU_factorization(P.copy(), 'complete')
     for i in range(n):
         x[i] = rnd.choice([1,-1]) * rnd.random()
     r = b - mat_mult(A,x)
-    LU, p, q = LU_factorization(P_copy, 'complete')
-    z = solver(r,LU,'col','complete',p, q)
     i = 0
-    while sum(abs(mat_mult(P,z)-r)) > tol:
+    while sum(abs(r)) > tol:
        i += 1
+       z = solver(r,LU,'col','complete',p, q)
        ω = mat_mult(A,z)
        α = sum(r*z)/sum(z*mat_mult(A,z))
        x = x + α*z
        r = r - α*ω
-       z = solver(r,LU,'col','complete',p, q)
-    LU, p, q = LU_factorization(A.copy(), 'complete')
-    x = solver(b - mat_mult(P,z), LU, 'col', 'complete',p , q)
     return x
 
 A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
@@ -250,3 +246,21 @@ P = np.array([[np.diag(A)[0],0,0],[0,np.diag(A)[1],0],[0,0,np.diag(A)[2]]])
 # solution: .705782, -.493197, 1.69898
 
 test = steepest_descent(A,P,b,.0000001)
+
+#%%
+
+A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
+b = np.array([3,0,17],'float')
+pivot = 'complete'
+orientation = 'row'
+LU_c, p, q = LU_factorization(A, pivot)
+# print(get_A_from_LU(LU_c,pivot,p,q))
+x_c = solver(b, LU_c, orientation, pivot, p, q)
+print('Composite LU Matrix with complete pivoting:')
+print(LU_c,'\n')
+print('Pivot vector p:')
+print(p,'\n')
+print('Pivot vector q:')
+print(q,'\n')
+print('Solution x_c:')
+print(x_c)
