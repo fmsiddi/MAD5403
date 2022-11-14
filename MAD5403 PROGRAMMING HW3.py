@@ -233,18 +233,20 @@ def steepest_descent(A,P,b,tol):
     LU, p, q = LU_factorization(P_copy, 'complete')
     z = solver(r,LU,'col','complete',p, q)
     i = 0
-    while sum(abs(z-r)) > tol:
+    while sum(abs(mat_mult(P,z)-r)) > tol:
        i += 1
        ω = mat_mult(A,z)
        α = sum(r*z)/sum(z*mat_mult(A,z))
        x = x + α*z
        r = r - α*ω
        z = solver(r,LU,'col','complete',p, q)
-    return z, i
+    LU, p, q = LU_factorization(A.copy(), 'complete')
+    x = solver(b - mat_mult(P,z), LU, 'col', 'complete',p , q)
+    return x
 
 A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
 b = np.array([2,3,1],'float')
 P = np.array([[np.diag(A)[0],0,0],[0,np.diag(A)[1],0],[0,0,np.diag(A)[2]]])
 # solution: .705782, -.493197, 1.69898
 
-test, i = steepest_descent(A,P,b,.0000001)
+test = steepest_descent(A,P,b,.0000001)
