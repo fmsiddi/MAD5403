@@ -125,40 +125,40 @@ def get_LU_vector(LU, lower_or_upper, row_or_col, i):
             v[i+1:] = 0 # SUB DIAGONAL ELEMENTS OF U ARE 0
     return v
     
-def forward_sub(b, LU, orientation_method): # SOLVES Ly = b FOR BOTH ROW/COLUMN ORIENTED METHODS
+def forward_sub(b, L, orientation_method): # SOLVES Ly = b FOR BOTH ROW/COLUMN ORIENTED METHODS
     n = b.shape[0]
     if orientation_method == 'row':
         y = np.ndarray(n)
-        y[0] = b[0]
+        y[0] = b[0]/L[0,0]
         for i in range(1,n):
-            L_i = get_LU_vector(LU,'L','row',i)
+            L_i = L[i]
             y[i] = (b[i]-sum(L_i[:i]*y[:i]))/L_i[i]
         return y
     if orientation_method == 'col':
         b_copy = b.copy()
         for j in range(n-1):
-            L_j = get_LU_vector(LU,'L','col',j)
+            L_j = L[:,j]
             b_copy[j] = b_copy[j]/L_j[j]
             b_copy[j+1:] = b_copy[j+1:]-(b_copy[j]*L_j[j+1:])
-        b_copy[n-1] = b_copy[n-1]
+        b_copy[n-1] = b_copy[n-1]/L[n-1,n-1]
         return b_copy
     
-def backward_sub(b, LU, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN ORIENTED METHODS
+def backward_sub(b, U, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN ORIENTED METHODS
     n = b.shape[0]
     if orientation_method == 'row':
         x = np.ndarray(n)
-        x[n-1] = b[n-1]/get_LU_vector(LU,'U','row',n-1)[n-1]
+        x[n-1] = b[n-1]/U[n-1,n-1]
         for i in reversed(range(n-1)):
-            U_i = get_LU_vector(LU,'U','row',i)
-            x[i] = (b[i]-sum(U_i[i+1:]*x[i+1:]))/LU[i,i]
+            U_i = U[i]
+            x[i] = (b[i]-sum(U_i[i+1:]*x[i+1:]))/U[i,i]
         return x
     if orientation_method == 'col':
         b_copy = b.copy()
         for j in reversed(range(1,n)):
-            U_j = get_LU_vector(LU,'U','col',j)
+            U_j = U[:,j]
             b_copy[j] = b_copy[j]/U_j[j]
             b_copy[:j] = b_copy[:j]-(b_copy[j]*U_j[:j])
-        b_copy[0] = b_copy[0]/LU[0,0]
+        b_copy[0] = b_copy[0]/U[0,0]
         return b_copy
 
 def solver(b, LU, orientation_method, pivot, P=None, Q=None): # SOLVES LINEAR SYSTEM USING LU FACTORIZATION AND PERMUTATION ARRAYS
@@ -223,44 +223,80 @@ def get_A_from_LU(LU,pivot,P=None,Q=None):
     return M
 
 #%%
-# TODO: FIND WAY TO USE SOLVER WITHOUT FACTORIZING P
-def steepest_descent(A,P,b,tol):
+# TODO: FIND WAY TO USE SOLVER WITHOUT FACTORIZING P IF POSSIBLE
+# TODO: FIND MORE EFFICIENT WAY TO STORE P AND A SINCE THEY ARE ALWAYS SYMMETRIC
+def steepest_descent(A,b,P_choice,tol):
     n = len(b)
-    x = np.ndarray((n))
-    for i in range(n):
-        x[i] = rnd.choice([1,-1]) * rnd.random()
+    # if P_choice == 'I':
+    #     P = np.identity(n)
+    if P_choice == 'J':
+        P = np.diag(A)
+    elif P_choice == 'SGS':
+        C = np.zeros((n,n))
+        for i in range(n):
+            for j in range(n):
+                if j<=i:
+                    C[i,j] = A[i,j]/(np.sqrt(np.diag(A))[j])
+    elif P_choice != 'I':
+        print('Error: Please indicate proper choice of preconditioner matrix')
+        exit
+    x = np.tile(0.,4)
     r = b - mat_mult(A,x)
-    LU, p, q = LU_factorization(P.copy(), 'complete')
     while max(abs(r)) > tol:
-        z = solver(r,LU,'col','complete',p, q)
+        if P_choice == 'I':
+            z = r.copy()
+        elif P_choice == 'J':
+            z = r/P
+        else:
+            y = forward_sub(r,C,'col')
+            z = backward_sub(y,C.T,'col')
         ω = mat_mult(A,z)
         α = sum(r*z)/sum(z*ω)
         x = x + α*z
         r = r - α*ω
     return x
 
-def conjugate_gradient(A,P,b,tol):
+def conjugate_gradient(A,b,P_choice,tol):
     n = len(b)
-    x = np.ndarray((n))
-    # for i in range(n):
-    #     x[i] = rnd.choice([1,-1]) * rnd.random()
+    if P_choice == 'J':
+        P = np.diag(A)
+    elif P_choice == 'SGS':
+        C = np.zeros((n,n))
+        for i in range(n):
+            for j in range(n):
+                if j<=i:
+                    C[i,j] = A[i,j]/(np.sqrt(np.diag(A))[j])
+    elif P_choice != 'I':
+        print('Error: Please indicate proper choice of preconditioner matrix')
+        exit
     x = np.tile(0.,4)
     r = b - mat_mult(A,x)
-    LU, p, q = LU_factorization(P.copy(), 'complete')
-    z = solver(r,LU,'col','complete',p, q)
-    pk = z.copy()
+    if P_choice == 'I':
+        z = r.copy()
+    elif P_choice == 'J':
+        z = r/P
+    else:
+        y = forward_sub(r,C,'col')
+        z = backward_sub(y,C.T,'col')
+    p = z.copy()
     i = 0
     while max(abs(r)) > tol:
         i += 1
-        v = mat_mult(A,pk)
+        v = mat_mult(A,p)
         dot_r_z = sum(r*z)
-        α = dot_r_z/sum(pk*v)
-        x = x + α*pk
+        α = dot_r_z/sum(p*v)
+        x = x + α*p
         r = r - α*v
-        z = solver(r,LU,'col','complete',p, q)
+        if P_choice == 'I':
+            z = r.copy()
+        elif P_choice == 'J':
+            z = r/P
+        else:
+            y = forward_sub(r,C,'col')
+            z = backward_sub(y,C.T,'col')
         β = sum(r*z)/dot_r_z
-        pk = z + β*pk
-    return x, i
+        p = z + β*p
+    return x
 
 #%%
 # A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
@@ -269,9 +305,6 @@ A = np.array([[5,7,6,5],[7,10,8,7],[6,8,10,9],[5,7,9,10]], dtype='float')
 b = np.array([23,32,33,31],'float')
 # A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
 # b = np.array([3,0,17],'float')
-P = np.array([[np.diag(A)[0],0,0,0],[0,np.diag(A)[1],0,0],[0,0,np.diag(A)[2],0],[0,0,0,np.diag(A)[3]]])
 
 
-test,i = conjugate_gradient(A,P,b,1e-6)
-
-#%%
+x = conjugate_gradient(A,b,'I',1e-12)
