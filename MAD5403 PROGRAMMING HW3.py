@@ -5,12 +5,13 @@ import random as rnd
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 
-def generate_positive_L(n):
+def generate_positive_L(n,a):
     L = np.zeros((n,n))
     np.fill_diagonal(L,1) # UNITARY DIAGONAL
     for i in range(1,n):
         for j in range(i):
-            L[i,j] = rnd.random() # rnd.random() ONLY GENERATES FLOATS < |1|
+            # rnd.random() ONLY GENERATES FLOATS < |1|, and we divide by 'a' to improve condition number of L*L.T
+            L[i,j] = rnd.random()/a 
     return L
 
 def v_2_norm(v):
@@ -83,8 +84,6 @@ def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
     if record_trend:
         sol_norm = np.sqrt(sum(sol**2))
         b_norm = np.sqrt(sum(b**2))
-    # if P_choice == 'I':
-    #     P = np.identity(n)
     if P_choice == 'J':
         P = np.diag(A)
     elif P_choice == 'SGS':
@@ -96,12 +95,11 @@ def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.tile(0.,n)
+    x = np.random.random(n)
     r = b - mat_mult(A,x)
     err_res = np.ndarray((1,2))
     i = 0
     while np.sqrt(sum(r**2)) > tol:
-    # while max(abs(r)) > tol:
         if P_choice == 'I':
             z = r.copy()
         elif P_choice == 'J':
@@ -114,13 +112,13 @@ def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
         x = x + α*z
         r = r - α*ω
         if record_trend:
-            if i == 1:
-                error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
-                resid_norm = np.sqrt(sum(r**2))/b_norm
+            error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
+            resid_norm = np.sqrt(sum(r**2))/b_norm
+            if i == 0:
                 err_res[i,0] = error_norm
                 err_res[i,1] = resid_norm
             else:
-                np.concatenate(err_res,np.array([error_norm,resid_norm]).reshape(1,2))
+                err_res = np.concatenate((err_res,np.array([error_norm,resid_norm]).reshape(1,2)))
         i += 1
     if record_trend:
         return x, err_res
@@ -140,7 +138,7 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.tile(0.,n)
+    x = np.random.random(n)
     r = b - mat_mult(A,x)
     if record_trend:
         err_res = np.ndarray((1,2))
@@ -160,7 +158,6 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     p = z.copy()
     i = 0
     while np.sqrt(sum(r**2)) > tol:
-    # while max(abs(r)) > tol:
         v = mat_mult(A,p)
         dot_r_z = sum(r*z)
         α = dot_r_z/sum(p*v)
@@ -169,7 +166,7 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
         if record_trend:
             error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
             resid_norm = np.sqrt(sum(r**2))/b_norm
-            np.concatenate(err_res,np.array([error_norm,resid_norm]).reshape(1,2))
+            np.concatenate((err_res,np.array([error_norm,resid_norm]).reshape(1,2)))
         if P_choice == 'I':
             z = r.copy()
         elif P_choice == 'J':
@@ -187,25 +184,30 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     
 #%%
 # TESTING
-n = 20
+n = 100
 tol = 1e-6
-L = generate_positive_L(n)
+L = generate_positive_L(n,5)
 A = mat_mult(L,L.T)
+# eigs = np.linalg.eigvals(A)
+# ratio = max(eigs)/min(eigs)
+# print('condition number:',ratio)
 
-# MAKE A STRICTLY DIAGONALLY DOMINANT SO IT IS WELL-CONDITIONED
-for i in range(n):
-    A[i,i] += A[i].sum()
+# # MAKE A STRICTLY DIAGONALLY DOMINANT SO IT IS WELL-CONDITIONED
+# for i in range(n):
+#     A[i,i] += A[i].sum()
     
 x = generate_x(n)
 b = generate_b(A,x)
-# I_x, I_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
-I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
-error_norm = np.sqrt(sum((I_x-x)**2))
+x̃, err_res = steepest_descent(A,b,'J',tol,x,record_trend=True)
+# I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+# error_norm = np.sqrt(sum((I_x-x)**2))
 eigs = np.linalg.eigvals(A)
 ratio = max(eigs)/min(eigs)
-print('condition number:',ratio)
-print('error norm:',error_norm)
-print('number of iterations:',I_i)
+SPD = np.all(eigs > 0)
+print('condition number:', np.linalg.cond(A))
+# print('error norm:',error_norm)
+# print('number of iterations:',i)
+print('number of iterations:',err_res.shape[0])
 
 #%%
 # A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
@@ -215,22 +217,27 @@ b = np.array([23,32,33,31],'float')
 # A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
 # b = np.array([3,0,17],'float')
 
-tol = 1e-12
-# x̃, i = steepest_descent(A,b,'I',tol,record_trend=False)
+tol = 1e-6
+x̃, i = steepest_descent(A,b,'J',tol,record_trend=True)
 # x̃, i = conjugate_gradient(A,b,'I',tol,record_trend=False)
 
 #%%
-def SD_CG_P_analysis(method,trials,tol):
+def SD_CG_P_analysis(method,trials,tol,a):
     # first dimension is trial, second dimension is matrix size, third dimension is error/resid/iteration count
     I = np.ndarray((trials,2,3))
     J = np.ndarray((trials,2,3))
     SGS = np.ndarray((trials,2,3))
+    K = np.ndarray((trials,2))
     for i in tqdm(range(trials), desc="Running accuracy tests for {} method".format(method)):
         for n in [10,100]:
-            L = generate_positive_L(n)
+            L = generate_positive_L(n,a)
             A = mat_mult(L,L.T)
-            for i in range(n):
-                A[i,i] += A[i].sum()
+            if n == 10:
+                K[i,0] = np.linalg.cond(A)
+                SPD[i,0] = np.all(np.linalg.eigvals(A) > 0)
+            else:
+                K[i,1] = np.linalg.cond(A)
+                SPD[i,1] = np.all(np.linalg.eigvals(A) > 0)
             x = generate_x(n)
             b = generate_b(A,x)
             if method == 'SD':
@@ -258,40 +265,40 @@ def SD_CG_P_analysis(method,trials,tol):
                 I[i,1] = np.array([I_err_norm, I_r_norm, I_i])
                 J[i,1] = np.array([J_err_norm, J_r_norm, J_i])
                 SGS[i,1] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
-    return I, J, SGS
+    return I, J, SGS, K, SPD
 
-trials = 100
+trials = 10
 tol = 1e-6
-SD_I, SD_J, SD_SGS = SD_CG_P_analysis('SD',trials,tol)
-# CG_I, SD_J, CG_SGS = SD_CG_P_analysis('CG',trials,tol)
+SD_I, SD_J, SD_SGS, K_SD, SPD_SD = SD_CG_P_analysis('SD',trials,tol)
+CG_I, CG_J, CG_SGS, K_CG, SPD_CG = SD_CG_P_analysis('CG',trials,tol)
 
 
 
 
 #%%
 # Gram-Schmidt
-def generate_Q(n):
-    Q = np.ndarray((n,n))
-    V = np.random.random((n,n))
-    # V = np.array([[1.,2.],[3.,4.]])
-    Q[0] = V[0]
-    for i in range(1,n):
-        subtract = 0
-        for j in range(i):
-            subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
-        Q[i] = V[i] + subtract
-    return Q
+# def generate_Q(n):
+#     Q = np.ndarray((n,n))
+#     V = np.random.random((n,n))
+#     # V = np.array([[1.,2.],[3.,4.]])
+#     Q[0] = V[0]
+#     for i in range(1,n):
+#         subtract = 0
+#         for j in range(i):
+#             subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
+#         Q[i] = V[i] + subtract
+#     return Q
       
-n = 5
-step = .5/5
-Q = generate_Q(n)
-lamb = np.diag(np.arange(.5,1,step))
-A = mat_mult(Q.T,mat_mult(lamb,Q))
-eigs = np.linalg.eigvals(A)
-ratio = max(eigs)/min(eigs)
-print('condition number:',ratio)
-for i in range(n):
-    for j in range(n):
-        if i != j:
-            print(round(sum(Q[i]*Q[j])))
+# n = 5
+# step = .5/5
+# Q = generate_Q(n)
+# lamb = np.diag(np.arange(.5,1,step))
+# A = mat_mult(Q.T,mat_mult(lamb,Q))
+# eigs = np.linalg.eigvals(A)
+# ratio = max(eigs)/min(eigs)
+# print('condition number:',ratio)
+# for i in range(n):
+#     for j in range(n):
+#         if i != j:
+#             print(round(sum(Q[i]*Q[j])))
             
