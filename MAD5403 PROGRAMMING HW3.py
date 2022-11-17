@@ -184,10 +184,10 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     
 #%%
 # TESTING
-n = 100
-tol = 1e-6
-L = generate_positive_L(n,5)
-A = mat_mult(L,L.T)
+# n = 100
+# tol = 1e-6
+# L = generate_positive_L(n,5)
+# A = mat_mult(L,L.T)
 # eigs = np.linalg.eigvals(A)
 # ratio = max(eigs)/min(eigs)
 # print('condition number:',ratio)
@@ -196,83 +196,93 @@ A = mat_mult(L,L.T)
 # for i in range(n):
 #     A[i,i] += A[i].sum()
     
-x = generate_x(n)
-b = generate_b(A,x)
-x̃, err_res = steepest_descent(A,b,'J',tol,x,record_trend=True)
+# x = generate_x(n)
+# b = generate_b(A,x)
+# x̃, err_res = steepest_descent(A,b,'J',tol,x,record_trend=True)
 # I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
 # error_norm = np.sqrt(sum((I_x-x)**2))
-eigs = np.linalg.eigvals(A)
-ratio = max(eigs)/min(eigs)
-SPD = np.all(eigs > 0)
-print('condition number:', np.linalg.cond(A))
+# eigs = np.linalg.eigvals(A)
+# ratio = max(eigs)/min(eigs)
+# SPD = np.all(eigs > 0)
+# print('condition number:', np.linalg.cond(A))
 # print('error norm:',error_norm)
 # print('number of iterations:',i)
-print('number of iterations:',err_res.shape[0])
+# print('number of iterations:',err_res.shape[0])
 
 #%%
-# A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
-# b = np.array([2,3,1],'float')
-A = np.array([[5,7,6,5],[7,10,8,7],[6,8,10,9],[5,7,9,10]], dtype='float')
-b = np.array([23,32,33,31],'float')
-# A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
-# b = np.array([3,0,17],'float')
 
-tol = 1e-6
-x̃, i = steepest_descent(A,b,'J',tol,record_trend=True)
+# A = np.array([[5,7,6,5],[7,10,8,7],[6,8,10,9],[5,7,9,10]], dtype='float')
+# b = np.array([23,32,33,31],'float')
+
+# tol = 1e-6
+# x̃, i = steepest_descent(A,b,'J',tol,record_trend=True)
 # x̃, i = conjugate_gradient(A,b,'I',tol,record_trend=False)
 
 #%%
-def SD_CG_P_analysis(method,trials,tol,a):
-    # first dimension is trial, second dimension is matrix size, third dimension is error/resid/iteration count
-    I = np.ndarray((trials,2,3))
-    J = np.ndarray((trials,2,3))
-    SGS = np.ndarray((trials,2,3))
+def SD_CG_P_analysis(trials,tol,a):
+    # first dimension is trial,
+    # second dimension is matrix size 
+    # third dimension is method
+    # fourth dimension is preconditioner
+    # fifth dimension is error/resid/iteration count 
+    out = np.ndarray((trials,2,2,3,3))
     K = np.ndarray((trials,2))
-    for i in tqdm(range(trials), desc="Running accuracy tests for {} method".format(method)):
+    for i in tqdm(range(trials), desc="Running accuracy tests"):
         for n in [10,100]:
             L = generate_positive_L(n,a)
             A = mat_mult(L,L.T)
             if n == 10:
                 K[i,0] = np.linalg.cond(A)
-                SPD[i,0] = np.all(np.linalg.eigvals(A) > 0)
             else:
                 K[i,1] = np.linalg.cond(A)
-                SPD[i,1] = np.all(np.linalg.eigvals(A) > 0)
             x = generate_x(n)
             b = generate_b(A,x)
-            if method == 'SD':
-                I_x, I_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
-                J_x, J_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
-                SGS_x, SGS_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
-            elif method == 'CG':
-                I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
-                J_x, J_i = conjugate_gradient(A,b,'J',tol,x,record_trend=False)
-                SGS_x, SGS_i = conjugate_gradient(A,b,'SGS',tol,x,record_trend=False)
-            I_r = b - mat_mult(A,I_x)
-            J_r = b - mat_mult(A,J_x)
-            SGS_r = b - mat_mult(A,SGS_x)
-            I_r_norm = np.sqrt(sum(I_r**2))
-            J_r_norm = np.sqrt(sum(J_r**2))
-            SGS_r_norm = np.sqrt(sum(SGS_r**2))
-            I_err_norm = np.sqrt(sum((I_x-x)**2))
-            J_err_norm = np.sqrt(sum((J_x-x)**2))
-            SGS_err_norm = np.sqrt(sum((SGS_x-x)**2))
-            if n == 10:
-                I[i,0] = np.array([I_err_norm, I_r_norm, I_i])
-                J[i,0] = np.array([J_err_norm, J_r_norm, J_i])
-                SGS[i,0] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
-            elif n == 100:
-                I[i,1] = np.array([I_err_norm, I_r_norm, I_i])
-                J[i,1] = np.array([J_err_norm, J_r_norm, J_i])
-                SGS[i,1] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
-    return I, J, SGS, K, SPD
+            for method in ['SD','CG']:
+                if method == 'SD':
+                    I_x, I_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
+                    J_x, J_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
+                    SGS_x, SGS_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
+                elif method == 'CG':
+                    I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+                    J_x, J_i = conjugate_gradient(A,b,'J',tol,x,record_trend=False)
+                    SGS_x, SGS_i = conjugate_gradient(A,b,'SGS',tol,x,record_trend=False)
+                I_r = b - mat_mult(A,I_x)
+                J_r = b - mat_mult(A,J_x)
+                SGS_r = b - mat_mult(A,SGS_x)
+                I_r_norm = np.sqrt(sum(I_r**2))
+                J_r_norm = np.sqrt(sum(J_r**2))
+                SGS_r_norm = np.sqrt(sum(SGS_r**2))
+                I_err_norm = np.sqrt(sum((I_x-x)**2))
+                J_err_norm = np.sqrt(sum((J_x-x)**2))
+                SGS_err_norm = np.sqrt(sum((SGS_x-x)**2))
+                if n == 10 and method == 'SD':
+                    out[i,0,0,0] = np.array([I_err_norm, I_r_norm, I_i])
+                    out[i,0,0,1] = np.array([J_err_norm, J_r_norm, J_i])
+                    out[i,0,0,2] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+                elif n == 10 and method == 'CG':
+                    out[i,0,1,0] = np.array([I_err_norm, I_r_norm, I_i])
+                    out[i,0,1,1] = np.array([J_err_norm, J_r_norm, J_i])
+                    out[i,0,1,2] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+                elif n == 100 and method == 'SD':
+                    out[i,1,0,0] = np.array([I_err_norm, I_r_norm, I_i])
+                    out[i,1,0,1] = np.array([J_err_norm, J_r_norm, J_i])
+                    out[i,1,0,2] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+                elif n == 100 and method == 'CG':
+                    out[i,1,1,0] = np.array([I_err_norm, I_r_norm, I_i])
+                    out[i,1,1,1] = np.array([J_err_norm, J_r_norm, J_i])
+                    out[i,1,1,2] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+    return out, K
 
-trials = 10
+trials = 100
 tol = 1e-6
-SD_I, SD_J, SD_SGS, K_SD, SPD_SD = SD_CG_P_analysis('SD',trials,tol)
-CG_I, CG_J, CG_SGS, K_CG, SPD_CG = SD_CG_P_analysis('CG',trials,tol)
+results, K = SD_CG_P_analysis(trials,tol,4)
 
-
+resid_10 = results[:,0,:,:,0]
+error_10 = results[:,0,:,:,1]
+iter_10 = results[:,0,:,:,2]
+resid_100 = results[:,1,:,:,0]
+error_100 = results[:,1,:,:,1]
+iter_100 = results[:,1,:,:,2]
 
 
 #%%
