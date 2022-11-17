@@ -5,15 +5,6 @@ import random as rnd
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 
-# Step 1:
-def generate_L(n):
-    L = np.zeros((n,n))
-    np.fill_diagonal(L,1) # UNITARY DIAGONAL
-    for i in range(1,n):
-        for j in range(i):
-            L[i,j] = rnd.choice([1,-1]) * rnd.random() # rnd.random() ONLY GENERATES FLOATS < |1|
-    return L
-
 def generate_positive_L(n):
     L = np.zeros((n,n))
     np.fill_diagonal(L,1) # UNITARY DIAGONAL
@@ -22,15 +13,9 @@ def generate_positive_L(n):
             L[i,j] = rnd.random() # rnd.random() ONLY GENERATES FLOATS < |1|
     return L
 
-def generate_U(n):
-    L = generate_L(n)
-    np.fill_diagonal(L,rnd.choices(range(2,5), k=n)) # ENSURES DIAGONAL ELEMENTS AREN'T TOO SMALL COMPARED TO NON-ZERO ELEMENTS
-    U = L.T
-    return U
+def v_2_norm(v):
+    return np.sqrt(sum(v**2))
 
-#%%
-
-# Step 3:
 def mat_mult(A,B): # MATRIX MULTIPLICATION ROUTINE
     if len(B.shape) > 1:
         M = np.zeros((A.shape[0],B.shape[1]))
@@ -43,88 +28,18 @@ def mat_mult(A,B): # MATRIX MULTIPLICATION ROUTINE
             M[i] = sum(A[i] * B)
     return M
 
-def index_flip(array,i,j): # TAKES ARRAY AND SWAPS iTH ELEMENT WITH jTH ELEMENT
-    out = array
-    out[[i,j]] = out[[j,i]]
-    return out
+def generate_x(n):
+    x = np.zeros(n)
+    for i in range(n):
+        x[i] = rnd.random()
+    while v_2_norm(x) < 1:
+        x = x*1.5 
+    return x
 
-def LU_factorization(A, pivot='none'): # FACTORIZATION TAKES MATRIX A AND PIVOT METHOD
-    n = A.shape[0] # EXTRACT NUMBER OF ROWS
-    if pivot == 'none': # WITHOUT PIVOTING
-        for k in range(n-1):
-            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
-                print('Error: diagonal element of 0 encountered')
-                print('Try partial pivoting')
-                break
-            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
-            for j in range(k+1, n):
-                for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
-        return A # RETURN COMPOSITE LU MATRIX
-    
-    if pivot == 'partial': # WITH PARTIAL PIVOTING
-        P = np.arange(n) # INITIALIZE ROW PERMUTATION ARRAY
-        for k in range(n-1):
-            p_index = abs(A[k:,k]).argmax() + k # FIND INDEX OF ROW WITH LARGEST PIVOT VALUE
-            if p_index - k > 0:
-                P[[k,p_index]] = P[[p_index,k]] # RECORD ROW PERMUTATION
-                A = A[index_flip(np.arange(n),k,p_index)] # PERMUTE A BY P
-            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
-                print('Error: diagonal element of 0 encountered')
-                print('Try complete pivoting')
-                break
-            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
-            for j in range(k+1, n):
-                for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
-        return A, P # RETURN COMPOSITE LU MATRIX AND PERMUTATION ARRAY
-    
-    if pivot == 'complete': # WITH COMPLETE PIVOTING
-        P = np.arange(n) # INITIALIZE ROW PERMUTATION ARRAY
-        Q = np.arange(n) # INITIALIZE COLUMN PERMUTATION ARRAY
-        for k in range(n-1):
-            p_index = abs(A[k:,k:]).argmax() // A[k:,k:].shape[0] + k # FIND INDEX OF ROW WITH LARGEST PIVOT VALUE
-            q_index = abs(A[k:,k:].T).argmax() // A[k:,k:].shape[1] + k # FIND INDEX OF COLUMN WITH LARGEST PIVOT VALUE
-            if p_index - k > 0:
-                P[[k,p_index]] = P[[p_index,k]] # RECORD ROW PERMUTATION
-                A = A[index_flip(np.arange(n),k,p_index)] # PERMUTE A BY P
-            if q_index - k > 0:
-                Q[[k,q_index]] = Q[[q_index,k]] # RECORD COLUMN PERMUTATION
-                A = A.T[index_flip(np.arange(n),k,q_index)].T # PERMUTE A BY Q
-            if A[k,k] == 0: # EXIT ROUTINE IF DIAGONAL ELEMENT IS 0
-                print('Error: matrix is singular, LU factorization does not exist')
-                break
-            A[k+1:, k] = A[k+1:, k]/A[k,k] # COMPUTE MULTIPLIERS IN PLACE
-            for j in range(k+1, n):
-                for i in range(k+1, n):
-                    A[i,j] = A[i,j] - A[i,k]*A[k,j] # COMPUTE REMAINING ENTRIES OF SUBMATRIX
-        return A, P, Q # RETURN COMPOSITE LU MATRIX AND PERMUTATION ARRAYS
+def generate_b(A,x):
+    b = mat_mult(A,x)
+    return b
 
-#%%
-
-# Step 4:
-# TAKES COMPOSITE LU MATRIX AND EXTRACTS WHAT THE iTH ROW OR COLUMN WOULD BE FOR L OR U
-# THIS METHOD IS NEEDED SO WE CAN PERFORM THE NECESSARY COMPUTATIONS WITH L AND U WITHOUT EVER
-# ALLOCATING MEMORY FOR A FULL VERSION OF L OR U
-def get_LU_vector(LU, lower_or_upper, row_or_col, i):
-    if lower_or_upper == 'L':
-        if row_or_col == 'row':
-            v = LU[i].copy() # EXTRACT iTH ROW OF COMPOSITE LU
-            v[i] = 1 # DIAGONAL ELEMENTS OF L ARE 1
-            v[i+1:] = 0 # SUPER DIAGONAL ELEMENTS OF L ARE 0
-        elif row_or_col == 'col':
-            v = LU.T[i].copy() # EXTRACT iTH COLUMN OF COMPOSITE LU
-            v[i] = 1 # DIAGONAL ELEMENTS OF L ARE 1
-            v[:i] = 0 # SUPER DIAGONAL ELEMENTS OF L ARE 0
-    elif lower_or_upper == 'U':
-        if row_or_col == 'row':
-            v = LU[i].copy() # EXTRACT iTH ROW OF COMPOSITE LU
-            v[:i] = 0 # SUB DIAGONAL ELEMENTS OF U ARE 0
-        elif row_or_col == 'col':
-            v = LU.T[i].copy() # EXTRACT iTH COLUMN OF COMPOSITE LU
-            v[i+1:] = 0 # SUB DIAGONAL ELEMENTS OF U ARE 0
-    return v
-    
 def forward_sub(b, L, orientation_method): # SOLVES Ly = b FOR BOTH ROW/COLUMN ORIENTED METHODS
     n = b.shape[0]
     if orientation_method == 'row':
@@ -161,72 +76,13 @@ def backward_sub(b, U, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN 
         b_copy[0] = b_copy[0]/U[0,0]
         return b_copy
 
-def solver(b, LU, orientation_method, pivot, P=None, Q=None): # SOLVES LINEAR SYSTEM USING LU FACTORIZATION AND PERMUTATION ARRAYS
-    if pivot != 'none':
-        b = b[P].copy()
-    y = forward_sub(b, LU, orientation_method)
-    x = backward_sub(y, LU, orientation_method)
-    if pivot == 'complete':
-        Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
-        x = x[Q_T]
-    return x
 
 #%%
-
-# Step 5:
-def M_one_norm(A):
-    m = A.shape[1]
-    max_col_sum = max([sum(abs(A.T[j])) for j in range(m)])
-    return max_col_sum
-
-def M_F_norm(A):
-    n = A.shape[0]
-    F = np.sqrt(sum([sum(A[i]**2) for i in range(n)]))
-    return F
-
-def PAQ(P, A, Q):
-    return A[P].T[Q].T
-
-def mat_mult_LU(LU):
-    M = LU.copy()
-    for i in range(LU.shape[0]):
-        for j in range(LU.shape[1]):
-            M[i,j] = sum(get_LU_vector(LU,'L','row',i)*get_LU_vector(LU,'U','col',j))
-    return M
-
-def v_1_norm(v):
-    return sum(abs(v))
-
-def v_2_norm(v):
-    return np.sqrt(sum(v**2))
-
-def generate_x(n):
-    x = np.zeros(n)
-    for i in range(n):
-        x[i] = rnd.random()
-    while v_1_norm(x) < 1 or v_2_norm(x) < 1:
-        x = x*1.5 
-    return x
-
-def generate_b(A,x):
-    b = mat_mult(A,x)
-    return b
-
-def get_A_from_LU(LU,pivot,P=None,Q=None):  
-    M = mat_mult_LU(LU)
-    if pivot != 'none':
-        P_T = P = np.array([list(P).index(i) for i in range(len(P))])
-        M = M[P_T]
-        if pivot =='complete':
-            Q_T = np.array([list(Q).index(i) for i in range(len(Q))])
-            M = M.T[Q_T].T
-    return M
-
-#%%
-# TODO: FIND WAY TO USE SOLVER WITHOUT FACTORIZING P IF POSSIBLE
-# TODO: FIND MORE EFFICIENT WAY TO STORE P AND A SINCE THEY ARE ALWAYS SYMMETRIC
-def steepest_descent(A,b,P_choice,tol):
+def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
     n = len(b)
+    if record_trend:
+        sol_norm = np.sqrt(sum(sol**2))
+        b_norm = np.sqrt(sum(b**2))
     # if P_choice == 'I':
     #     P = np.identity(n)
     if P_choice == 'J':
@@ -240,9 +96,12 @@ def steepest_descent(A,b,P_choice,tol):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.tile(0.,4)
+    x = np.tile(0.,n)
     r = b - mat_mult(A,x)
-    while max(abs(r)) > tol:
+    err_res = np.ndarray((1,2))
+    i = 0
+    while np.sqrt(sum(r**2)) > tol:
+    # while max(abs(r)) > tol:
         if P_choice == 'I':
             z = r.copy()
         elif P_choice == 'J':
@@ -254,9 +113,21 @@ def steepest_descent(A,b,P_choice,tol):
         α = sum(r*z)/sum(z*ω)
         x = x + α*z
         r = r - α*ω
-    return x
+        if record_trend:
+            if i == 1:
+                error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
+                resid_norm = np.sqrt(sum(r**2))/b_norm
+                err_res[i,0] = error_norm
+                err_res[i,1] = resid_norm
+            else:
+                np.concatenate(err_res,np.array([error_norm,resid_norm]).reshape(1,2))
+        i += 1
+    if record_trend:
+        return x, err_res
+    else:
+        return x, i
 
-def conjugate_gradient(A,b,P_choice,tol):
+def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     n = len(b)
     if P_choice == 'J':
         P = np.diag(A)
@@ -269,8 +140,16 @@ def conjugate_gradient(A,b,P_choice,tol):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.tile(0.,4)
+    x = np.tile(0.,n)
     r = b - mat_mult(A,x)
+    if record_trend:
+        err_res = np.ndarray((1,2))
+        sol_norm = np.sqrt(sum(sol**2))
+        b_norm = np.sqrt(sum(b**2))
+        error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
+        resid_norm = np.sqrt(sum(r**2))/b_norm
+        err_res[i,0] = error_norm
+        err_res[i,1] = resid_norm
     if P_choice == 'I':
         z = r.copy()
     elif P_choice == 'J':
@@ -280,13 +159,17 @@ def conjugate_gradient(A,b,P_choice,tol):
         z = backward_sub(y,C.T,'col')
     p = z.copy()
     i = 0
-    while max(abs(r)) > tol:
-        i += 1
+    while np.sqrt(sum(r**2)) > tol:
+    # while max(abs(r)) > tol:
         v = mat_mult(A,p)
         dot_r_z = sum(r*z)
         α = dot_r_z/sum(p*v)
         x = x + α*p
         r = r - α*v
+        if record_trend:
+            error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
+            resid_norm = np.sqrt(sum(r**2))/b_norm
+            np.concatenate(err_res,np.array([error_norm,resid_norm]).reshape(1,2))
         if P_choice == 'I':
             z = r.copy()
         elif P_choice == 'J':
@@ -296,7 +179,33 @@ def conjugate_gradient(A,b,P_choice,tol):
             z = backward_sub(y,C.T,'col')
         β = sum(r*z)/dot_r_z
         p = z + β*p
-    return x
+        i += 1
+    if record_trend:
+        return x, err_res
+    else:
+        return x, i
+    
+#%%
+# TESTING
+n = 20
+tol = 1e-6
+L = generate_positive_L(n)
+A = mat_mult(L,L.T)
+
+# MAKE A STRICTLY DIAGONALLY DOMINANT SO IT IS WELL-CONDITIONED
+for i in range(n):
+    A[i,i] += A[i].sum()
+    
+x = generate_x(n)
+b = generate_b(A,x)
+# I_x, I_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
+I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+error_norm = np.sqrt(sum((I_x-x)**2))
+eigs = np.linalg.eigvals(A)
+ratio = max(eigs)/min(eigs)
+print('condition number:',ratio)
+print('error norm:',error_norm)
+print('number of iterations:',I_i)
 
 #%%
 # A = np.array([[7,4,1],[3,7,-1],[-1,1,2]],'float')
@@ -306,5 +215,83 @@ b = np.array([23,32,33,31],'float')
 # A = np.array([[2,1,0],[-4,0,4],[2,5,10]], dtype='float')
 # b = np.array([3,0,17],'float')
 
+tol = 1e-12
+# x̃, i = steepest_descent(A,b,'I',tol,record_trend=False)
+# x̃, i = conjugate_gradient(A,b,'I',tol,record_trend=False)
 
-x = conjugate_gradient(A,b,'I',1e-12)
+#%%
+def SD_CG_P_analysis(method,trials,tol):
+    # first dimension is trial, second dimension is matrix size, third dimension is error/resid/iteration count
+    I = np.ndarray((trials,2,3))
+    J = np.ndarray((trials,2,3))
+    SGS = np.ndarray((trials,2,3))
+    for i in tqdm(range(trials), desc="Running accuracy tests for {} method".format(method)):
+        for n in [10,100]:
+            L = generate_positive_L(n)
+            A = mat_mult(L,L.T)
+            for i in range(n):
+                A[i,i] += A[i].sum()
+            x = generate_x(n)
+            b = generate_b(A,x)
+            if method == 'SD':
+                I_x, I_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
+                J_x, J_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
+                SGS_x, SGS_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
+            elif method == 'CG':
+                I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+                J_x, J_i = conjugate_gradient(A,b,'J',tol,x,record_trend=False)
+                SGS_x, SGS_i = conjugate_gradient(A,b,'SGS',tol,x,record_trend=False)
+            I_r = b - mat_mult(A,I_x)
+            J_r = b - mat_mult(A,J_x)
+            SGS_r = b - mat_mult(A,SGS_x)
+            I_r_norm = np.sqrt(sum(I_r**2))
+            J_r_norm = np.sqrt(sum(J_r**2))
+            SGS_r_norm = np.sqrt(sum(SGS_r**2))
+            I_err_norm = np.sqrt(sum((I_x-x)**2))
+            J_err_norm = np.sqrt(sum((J_x-x)**2))
+            SGS_err_norm = np.sqrt(sum((SGS_x-x)**2))
+            if n == 10:
+                I[i,0] = np.array([I_err_norm, I_r_norm, I_i])
+                J[i,0] = np.array([J_err_norm, J_r_norm, J_i])
+                SGS[i,0] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+            elif n == 100:
+                I[i,1] = np.array([I_err_norm, I_r_norm, I_i])
+                J[i,1] = np.array([J_err_norm, J_r_norm, J_i])
+                SGS[i,1] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
+    return I, J, SGS
+
+trials = 100
+tol = 1e-6
+SD_I, SD_J, SD_SGS = SD_CG_P_analysis('SD',trials,tol)
+# CG_I, SD_J, CG_SGS = SD_CG_P_analysis('CG',trials,tol)
+
+
+
+
+#%%
+# Gram-Schmidt
+def generate_Q(n):
+    Q = np.ndarray((n,n))
+    V = np.random.random((n,n))
+    # V = np.array([[1.,2.],[3.,4.]])
+    Q[0] = V[0]
+    for i in range(1,n):
+        subtract = 0
+        for j in range(i):
+            subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
+        Q[i] = V[i] + subtract
+    return Q
+      
+n = 5
+step = .5/5
+Q = generate_Q(n)
+lamb = np.diag(np.arange(.5,1,step))
+A = mat_mult(Q.T,mat_mult(lamb,Q))
+eigs = np.linalg.eigvals(A)
+ratio = max(eigs)/min(eigs)
+print('condition number:',ratio)
+for i in range(n):
+    for j in range(n):
+        if i != j:
+            print(round(sum(Q[i]*Q[j])))
+            
