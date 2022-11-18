@@ -79,7 +79,7 @@ def backward_sub(b, U, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN 
 
 
 #%%
-def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
+def steepest_descent(A,b,P_choice,tol,sol,record_trend=False):
     n = len(b)
     if record_trend:
         sol_norm = np.sqrt(sum(sol**2))
@@ -95,7 +95,8 @@ def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.random.random(n)
+    # x = np.random.random(n)
+    x = np.tile(0.,n)
     r = b - mat_mult(A,x)
     err_res = np.ndarray((1,2))
     i = 0
@@ -125,7 +126,7 @@ def steepest_descent(A,b,P_choice,tol,sol=None,record_trend=False):
     else:
         return x, i
 
-def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
+def conjugate_gradient(A,b,P_choice,tol,sol,record_trend=False):
     n = len(b)
     if P_choice == 'J':
         P = np.diag(A)
@@ -138,7 +139,8 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
     elif P_choice != 'I':
         print('Error: Please indicate proper choice of preconditioner matrix')
         exit
-    x = np.random.random(n)
+    # x = np.random.random(n)
+    x = np.tile(0.,n)
     r = b - mat_mult(A,x)
     if record_trend:
         err_res = np.ndarray((1,2))
@@ -146,8 +148,8 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
         b_norm = np.sqrt(sum(b**2))
         error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
         resid_norm = np.sqrt(sum(r**2))/b_norm
-        err_res[i,0] = error_norm
-        err_res[i,1] = resid_norm
+        err_res[0,0] = error_norm
+        err_res[0,1] = resid_norm
     if P_choice == 'I':
         z = r.copy()
     elif P_choice == 'J':
@@ -166,7 +168,7 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
         if record_trend:
             error_norm = np.sqrt(sum((x - sol)**2))/sol_norm
             resid_norm = np.sqrt(sum(r**2))/b_norm
-            np.concatenate((err_res,np.array([error_norm,resid_norm]).reshape(1,2)))
+            err_res = np.concatenate((err_res,np.array([error_norm,resid_norm]).reshape(1,2)))
         if P_choice == 'I':
             z = r.copy()
         elif P_choice == 'J':
@@ -186,21 +188,23 @@ def conjugate_gradient(A,b,P_choice,tol,sol=None,record_trend=False):
 # TESTING
 # n = 100
 # tol = 1e-6
-# L = generate_positive_L(n,5)
+# L = generate_positive_L(n,10)
 # A = mat_mult(L,L.T)
 # eigs = np.linalg.eigvals(A)
 # ratio = max(eigs)/min(eigs)
 # print('condition number:',ratio)
-
-# # MAKE A STRICTLY DIAGONALLY DOMINANT SO IT IS WELL-CONDITIONED
-# for i in range(n):
-#     A[i,i] += A[i].sum()
     
 # x = generate_x(n)
 # b = generate_b(A,x)
+
 # x̃, err_res = steepest_descent(A,b,'J',tol,x,record_trend=True)
-# I_x, I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+# x̃, err_res = conjugate_gradient(A,b,'I',tol,x,record_trend=True)
 # error_norm = np.sqrt(sum((I_x-x)**2))
+
+
+
+
+
 # eigs = np.linalg.eigvals(A)
 # ratio = max(eigs)/min(eigs)
 # SPD = np.all(eigs > 0)
@@ -273,7 +277,7 @@ def SD_CG_P_analysis(trials,tol,a):
                     out[i,1,1,2] = np.array([SGS_err_norm, SGS_r_norm, SGS_i])
     return out, K
 
-trials = 100
+trials = 500
 tol = 1e-6
 results, K = SD_CG_P_analysis(trials,tol,4)
 
