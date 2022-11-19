@@ -33,7 +33,7 @@ def generate_x(n):
     x = np.zeros(n)
     for i in range(n):
         x[i] = rnd.random()
-    while v_2_norm(x) < 1:
+    while v_2_norm(x) < 1: # make sure the 2-norm is larger than 1
         x = x*1.5 
     return x
 
@@ -79,15 +79,21 @@ def backward_sub(b, U, orientation_method): # SOLVES Ux = y FOR BOTH ROW/COLUMN 
 
 
 #%%
+# A: matrix
+# b: vector we use to compute residual
+# P_choice: which preconditioner to use
+# sol: actual solution x to Ax = b to use in computing error
+# record_trend: boolean used to determine whether to store error and residual at each iteration
 def steepest_descent(A,b,P_choice,tol,sol,record_trend=False):
     n = len(b)
     if record_trend:
         sol_norm = np.sqrt(sum(sol**2))
         b_norm = np.sqrt(sum(b**2))
     if P_choice == 'J':
-        P = np.diag(A)
+        P = np.diag(A) # only diagonal elements of A are stored in an array
     elif P_choice == 'SGS':
         C = np.zeros((n,n))
+        # we proceed to only compute lower trianguar matrix C that is factor of P_SGS
         for i in range(n):
             for j in range(n):
                 if j<=i:
@@ -102,10 +108,11 @@ def steepest_descent(A,b,P_choice,tol,sol,record_trend=False):
     i = 0
     while np.sqrt(sum(r**2)) > tol:
         if P_choice == 'I':
-            z = r.copy()
+            z = r.copy() # no preconditioner = residual is left alone
         elif P_choice == 'J':
-            z = r/P
+            z = r/P # Jacobi preconditioner = divide each element of r with each element of P
         else:
+            # for SGS, solve Cy = b then C^Tz=y
             y = forward_sub(r,C,'col')
             z = backward_sub(y,C.T,'col')
         ω = mat_mult(A,z)
@@ -126,12 +133,18 @@ def steepest_descent(A,b,P_choice,tol,sol,record_trend=False):
     else:
         return x, i
 
+# A: matrix
+# b: vector we use to compute residual
+# P_choice: which preconditioner to use
+# sol: actual solution x to Ax = b to use in computing error
+# record_trend: boolean used to determine whether to store error and residual at each iteration
 def conjugate_gradient(A,b,P_choice,tol,sol,record_trend=False):
     n = len(b)
     if P_choice == 'J':
-        P = np.diag(A)
+        P = np.diag(A) # only diagonal elements of A are stored in an array
     elif P_choice == 'SGS':
         C = np.zeros((n,n))
+        # we proceed to only compute lower trianguar matrix C that is factor of P_SGS
         for i in range(n):
             for j in range(n):
                 if j<=i:
@@ -151,17 +164,18 @@ def conjugate_gradient(A,b,P_choice,tol,sol,record_trend=False):
         err_res[0,0] = error_norm
         err_res[0,1] = resid_norm
     if P_choice == 'I':
-        z = r.copy()
+        z = r.copy() # no preconditioner = residual is left alone
     elif P_choice == 'J':
-        z = r/P
+        z = r/P # Jacobi preconditioner = divide each element of r with each element of P
     else:
+        # for SGS, solve Cy = b then C^Tz=y
         y = forward_sub(r,C,'col')
         z = backward_sub(y,C.T,'col')
     p = z.copy()
     i = 0
     while np.sqrt(sum(r**2)) > tol:
         v = mat_mult(A,p)
-        dot_r_z = sum(r*z)
+        dot_r_z = sum(r*z) # we compute this scalar and store in variable so we don't have to recompute later
         α = dot_r_z/sum(p*v)
         x = x + α*p
         r = r - α*v
@@ -170,10 +184,11 @@ def conjugate_gradient(A,b,P_choice,tol,sol,record_trend=False):
             resid_norm = np.sqrt(sum(r**2))/b_norm
             err_res = np.concatenate((err_res,np.array([error_norm,resid_norm]).reshape(1,2)))
         if P_choice == 'I':
-            z = r.copy()
+            z = r.copy() # no preconditioner = residual is left alone
         elif P_choice == 'J':
-            z = r/P
+            z = r/P # Jacobi preconditioner = divide each element of r with each element of P
         else:
+            # for SGS, solve Cy = b then C^Tz=y
             y = forward_sub(r,C,'col')
             z = backward_sub(y,C.T,'col')
         β = sum(r*z)/dot_r_z
@@ -183,44 +198,6 @@ def conjugate_gradient(A,b,P_choice,tol,sol,record_trend=False):
         return x, err_res
     else:
         return x, i
-    
-#%%
-# TESTING
-# n = 100
-# tol = 1e-6
-# L = generate_positive_L(n,10)
-# A = mat_mult(L,L.T)
-# eigs = np.linalg.eigvals(A)
-# ratio = max(eigs)/min(eigs)
-# print('condition number:',ratio)
-    
-# x = generate_x(n)
-# b = generate_b(A,x)
-
-# x̃, err_res = steepest_descent(A,b,'J',tol,x,record_trend=True)
-# x̃, err_res = conjugate_gradient(A,b,'I',tol,x,record_trend=True)
-# error_norm = np.sqrt(sum((I_x-x)**2))
-
-
-
-
-
-# eigs = np.linalg.eigvals(A)
-# ratio = max(eigs)/min(eigs)
-# SPD = np.all(eigs > 0)
-# print('condition number:', np.linalg.cond(A))
-# print('error norm:',error_norm)
-# print('number of iterations:',i)
-# print('number of iterations:',err_res.shape[0])
-
-#%%
-
-# A = np.array([[5,7,6,5],[7,10,8,7],[6,8,10,9],[5,7,9,10]], dtype='float')
-# b = np.array([23,32,33,31],'float')
-
-# tol = 1e-6
-# x̃, i = steepest_descent(A,b,'J',tol,record_trend=True)
-# x̃, i = conjugate_gradient(A,b,'I',tol,record_trend=False)
 
 #%%
 def SD_CG_P_analysis(trials,tol,a):
@@ -233,8 +210,8 @@ def SD_CG_P_analysis(trials,tol,a):
     K = np.ndarray((trials,2))
     for i in tqdm(range(trials), desc="Running accuracy tests"):
         for n in [10,100]:
-            L = generate_positive_L(n,a)
-            A = mat_mult(L,L.T)
+            A = generate_positive_L(n,a)
+            A = mat_mult(A,A.T)
             if n == 10:
                 K[i,0] = np.linalg.cond(A)
             else:
@@ -288,31 +265,416 @@ resid_100 = results[:,1,:,:,0]
 error_100 = results[:,1,:,:,1]
 iter_100 = results[:,1,:,:,2]
 
+#%%
+bins = int(trials/20)
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex=True,figsize=(12.8,9.6))
+f1.suptitle('Iterations to Convergence for 10x10', fontsize=16)
+ax1.hist(iter_10[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(iter_10[:,0,0].mean()),xy=(7,300))
+ax1.annotate('σ: {}'.format(round(iter_10[:,0,0].std(),2)),xy=(7,250))
+ax1.legend()
+
+ax2.hist(iter_10[:,1,0],label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(iter_10[:,1,0].mean()),xy=(15,300))
+ax2.annotate('σ: {}'.format(round(iter_10[:,1,0].std(),2)),xy=(15,250))
+ax2.legend()
+
+ax3.hist(iter_10[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(iter_10[:,0,1].mean()),xy=(7,300))
+ax3.annotate('σ: {}'.format(round(iter_10[:,0,1].std(),2)),xy=(7,250))
+ax3.legend()
+
+ax4.hist(iter_10[:,1,1],label='Jacobi')
+ax4.annotate('μ: {}'.format(iter_10[:,1,1].mean()),xy=(15,300))
+ax4.annotate('σ: {}'.format(round(iter_10[:,1,1].std(),2)),xy=(15,250))
+ax4.legend()
+
+ax5.hist(iter_10[:,0,2],label='SGS')
+ax5.set_xlabel('Iterations')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(iter_10[:,0,2].mean()),xy=(7,300))
+ax5.annotate('σ: {}'.format(round(iter_10[:,0,2].std(),2)),xy=(7,250))
+ax5.legend()
+
+ax6.hist(iter_10[:,1,2],label='SGS')
+ax6.set_xlabel('Iterations')
+ax6.annotate('μ: {}'.format(iter_10[:,1,2].mean()),xy=(15,300))
+ax6.annotate('σ: {}'.format(round(iter_10[:,1,2].std(),2)),xy=(15,250))
+ax6.legend()
+
+plt.show()
 
 #%%
-# Gram-Schmidt
-# def generate_Q(n):
-#     Q = np.ndarray((n,n))
-#     V = np.random.random((n,n))
-#     # V = np.array([[1.,2.],[3.,4.]])
-#     Q[0] = V[0]
-#     for i in range(1,n):
-#         subtract = 0
-#         for j in range(i):
-#             subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
-#         Q[i] = V[i] + subtract
-#     return Q
-      
-# n = 5
-# step = .5/5
-# Q = generate_Q(n)
-# lamb = np.diag(np.arange(.5,1,step))
-# A = mat_mult(Q.T,mat_mult(lamb,Q))
-# eigs = np.linalg.eigvals(A)
-# ratio = max(eigs)/min(eigs)
-# print('condition number:',ratio)
-# for i in range(n):
-#     for j in range(n):
-#         if i != j:
-#             print(round(sum(Q[i]*Q[j])))
-            
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex=True,figsize=(12.8,9.6))
+f1.suptitle('Relative Error After Convergence for 10x10', fontsize=16)
+ax1.hist(error_10[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(error_10[:,0,0].mean()),xy=(0,200))
+ax1.annotate('σ: {}'.format(error_10[:,0,0].std()),xy=(0,175))
+ax1.legend()
+
+ax2.hist(error_10[:,1,0],label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(error_10[:,1,0].mean()),xy=(0,200))
+ax2.annotate('σ: {}'.format(error_10[:,1,0].std()),xy=(0,175))
+ax2.legend()
+
+ax3.hist(error_10[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(error_10[:,0,1].mean()),xy=(0,200))
+ax3.annotate('σ: {}'.format(error_10[:,0,1].std()),xy=(0,175))
+ax3.legend()
+
+ax4.hist(error_10[:,1,1],label='Jacobi')
+ax4.annotate('μ: {}'.format(error_10[:,1,1].mean()),xy=(0,200))
+ax4.annotate('σ: {}'.format(error_10[:,1,1].std()),xy=(0,175))
+ax4.legend()
+
+ax5.hist(error_10[:,0,2],label='SGS')
+ax5.set_xlabel('Error')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(error_10[:,0,2].mean()),xy=(0,200))
+ax5.annotate('σ: {}'.format(error_10[:,0,2].std()),xy=(0,175))
+ax5.legend()
+
+ax6.hist(error_10[:,1,2],label='SGS')
+ax6.set_xlabel('Error')
+ax6.annotate('μ: {}'.format(error_10[:,1,2].mean()),xy=(5e-7,175))
+ax6.annotate('σ: {}'.format(error_10[:,1,2].std()),xy=(5e-7,150))
+ax6.legend()
+
+plt.show()
+
+#%%
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex=True,figsize=(12.8,9.6))
+f1.suptitle('Relative Residual After Convergence for 10x10', fontsize=16)
+ax1.hist(resid_10[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(resid_10[:,0,0].mean()),xy=(0,200))
+ax1.annotate('σ: {}'.format(resid_10[:,0,0].std()),xy=(0,175))
+ax1.legend()
+
+ax2.hist(resid_10[:,1,0],label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(resid_10[:,1,0].mean()),xy=(0,200))
+ax2.annotate('σ: {}'.format(resid_10[:,1,0].std()),xy=(0,175))
+ax2.legend()
+
+ax3.hist(resid_10[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(resid_10[:,0,1].mean()),xy=(0,200))
+ax3.annotate('σ: {}'.format(resid_10[:,0,1].std()),xy=(0,175))
+ax3.legend()
+
+ax4.hist(resid_10[:,1,1],label='Jacobi')
+ax4.annotate('μ: {}'.format(resid_10[:,1,1].mean()),xy=(0,200))
+ax4.annotate('σ: {}'.format(resid_10[:,1,1].std()),xy=(0,175))
+ax4.legend()
+
+ax5.hist(resid_10[:,0,2],label='SGS')
+ax5.set_xlabel('Residual')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(resid_10[:,0,2].mean()),xy=(0,200))
+ax5.annotate('σ: {}'.format(resid_10[:,0,2].std()),xy=(0,175))
+ax5.legend()
+
+ax6.hist(resid_10[:,1,2],label='SGS')
+ax6.set_xlabel('Residual')
+ax6.annotate('μ: {}'.format(resid_10[:,1,2].mean()),xy=(75e-8,175))
+ax6.annotate('σ: {}'.format(resid_10[:,1,2].std()),xy=(75e-8,150))
+ax6.legend()
+
+plt.show()
+#%%
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex='col',figsize=(12.8,9.6))
+f1.suptitle('Iterations to Convergence for 100x100', fontsize=16)
+ax1.hist(iter_100[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(iter_100[:,0,0].mean()),xy=(500,175))
+ax1.annotate('σ: {}'.format(round(iter_100[:,0,0].std(),2)),xy=(500,150))
+ax1.legend()
+
+bins = range(int(min(iter_100[:,1,0])),int(max(iter_100[:,1,0])+1))
+ax2.hist(iter_100[:,1,0],bins,label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(iter_100[:,1,0].mean()),xy=(34,175))
+ax2.annotate('σ: {}'.format(round(iter_100[:,1,0].std(),2)),xy=(34,150))
+ax2.legend()
+
+ax3.hist(iter_100[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(iter_100[:,0,1].mean()),xy=(2000,150))
+ax3.annotate('σ: {}'.format(round(iter_100[:,0,1].std(),2)),xy=(2000,125))
+ax3.legend()
+
+bins = range(int(min(iter_100[:,1,1])),int(max(iter_100[:,1,1])+1))
+ax4.hist(iter_100[:,1,1],bins,label='Jacobi')
+ax4.annotate('μ: {}'.format(iter_100[:,1,1].mean()),xy=(40,150))
+ax4.annotate('σ: {}'.format(round(iter_100[:,1,1].std(),2)),xy=(40,125))
+ax4.legend()
+
+ax5.hist(iter_100[:,0,2],label='SGS')
+ax5.set_xlabel('Iterations')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(iter_100[:,0,2].mean()),xy=(1000,150))
+ax5.annotate('σ: {}'.format(round(iter_100[:,0,2].std(),2)),xy=(1000,125))
+ax5.legend()
+
+bins = range(int(min(iter_100[:,1,2])),int(max(iter_100[:,1,2])+1))
+ax6.hist(iter_100[:,1,2],bins,label='SGS')
+ax6.set_xlabel('Iterations')
+ax6.annotate('μ: {}'.format(iter_100[:,1,2].mean()),xy=(34,150))
+ax6.annotate('σ: {}'.format(round(iter_100[:,1,2].std(),2)),xy=(34,125))
+ax6.legend()
+
+plt.show()
+
+#%%
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex=True,figsize=(12.8,9.6))
+f1.suptitle('Relative Error After Convergence for 100x100', fontsize=16)
+ax1.hist(error_100[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(error_100[:,0,0].mean()),xy=(3e-7,75))
+ax1.annotate('σ: {}'.format(error_100[:,0,0].std()),xy=(3e-7,65))
+ax1.legend()
+
+ax2.hist(error_100[:,1,0],label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(error_100[:,1,0].mean()),xy=(3e-7,80))
+ax2.annotate('σ: {}'.format(error_100[:,1,0].std()),xy=(3e-7,70))
+ax2.legend()
+
+ax3.hist(error_100[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(error_100[:,0,1].mean()),xy=(3e-7,80))
+ax3.annotate('σ: {}'.format(error_100[:,0,1].std()),xy=(3e-7,70))
+ax3.legend()
+
+ax4.hist(error_100[:,1,1],label='Jacobi')
+ax4.annotate('μ: {}'.format(error_100[:,1,1].mean()),xy=(3e-7,80))
+ax4.annotate('σ: {}'.format(error_100[:,1,1].std()),xy=(3e-7,70))
+ax4.legend()
+
+ax5.hist(error_100[:,0,2],label='SGS')
+ax5.set_xlabel('Error')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(error_100[:,0,2].mean()),xy=(3e-7,80))
+ax5.annotate('σ: {}'.format(error_100[:,0,2].std()),xy=(3e-7,70))
+ax5.legend()
+
+ax6.hist(error_100[:,1,2],label='SGS')
+ax6.set_xlabel('Error')
+ax6.annotate('μ: {}'.format(error_100[:,1,2].mean()),xy=(7e-7,80))
+ax6.annotate('σ: {}'.format(error_100[:,1,2].std()),xy=(7e-7,70))
+ax6.legend()
+
+plt.show()
+
+#%%
+
+# GRAPHING HISTOGRAM USING PYPLOT
+f1, ((ax1,ax2),(ax3,ax4),(ax5,ax6)) = plt.subplots(3,2, sharey=True, sharex=True,figsize=(12.8,9.6))
+f1.suptitle('Relative Residual After Convergence for 100x100', fontsize=16)
+ax1.hist(resid_100[:,0,0],label='None')
+ax1.set_ylabel('Frequency',labelpad=10)
+ax1.set_title('Steepest Descent')
+ax1.annotate('μ: {}'.format(resid_100[:,0,0].mean()),xy=(5e-7,125))
+ax1.annotate('σ: {}'.format(resid_100[:,0,0].std()),xy=(5e-7,110))
+ax1.legend()
+
+ax2.hist(resid_100[:,1,0],label='None')
+ax2.set_title('Conjugate Gradient')
+ax2.annotate('μ: {}'.format(resid_100[:,1,0].mean()),xy=(3e-6,110))
+ax2.annotate('σ: {}'.format(resid_100[:,1,0].std()),xy=(3e-6,95))
+ax2.legend()
+
+ax3.hist(resid_100[:,0,1],label='Jacobi')
+ax3.set_ylabel('Frequency',labelpad=10)
+ax3.annotate('μ: {}'.format(resid_100[:,0,1].mean()),xy=(5e-7,125))
+ax3.annotate('σ: {}'.format(resid_100[:,0,1].std()),xy=(5e-7,110))
+ax3.legend()
+
+ax4.hist(resid_100[:,1,1],label='Jacobi')
+ax4.annotate('μ: {}'.format(resid_100[:,1,1].mean()),xy=(3e-6,110))
+ax4.annotate('σ: {}'.format(resid_100[:,1,1].std()),xy=(3e-6,95))
+ax4.legend()
+
+ax5.hist(resid_100[:,0,2],label='SGS')
+ax5.set_xlabel('Residual')
+ax5.set_ylabel('Frequency',labelpad=10)
+ax5.annotate('μ: {}'.format(resid_100[:,0,2].mean()),xy=(1e-6,125))
+ax5.annotate('σ: {}'.format(resid_100[:,0,2].std()),xy=(1e-6,110))
+ax5.legend()
+
+ax6.hist(resid_100[:,1,2],label='SGS')
+ax6.set_xlabel('Residual')
+ax6.annotate('μ: {}'.format(resid_100[:,1,2].mean()),xy=(3e-6,110))
+ax6.annotate('σ: {}'.format(resid_100[:,1,2].std()),xy=(3e-6,95))
+ax6.legend()
+
+plt.show()
+
+#%%
+# TESTING
+tol = 1e-6
+
+n = 10
+L = generate_positive_L(n,4)
+A = mat_mult(L,L.T)
+x = generate_x(n)
+b = generate_b(A,x)
+
+SD_I_x_10, SD_I_err_res_10 = steepest_descent(A,b,'I',tol,x,record_trend=True)
+SD_J_x_10, SD_J_err_res_10 = steepest_descent(A,b,'J',tol,x,record_trend=True)
+SD_SGS_x_10, SD_SGS_err_res_10 = steepest_descent(A,b,'SGS',tol,x,record_trend=True)
+CG_I_x_10, CG_I_err_res_10 = conjugate_gradient(A,b,'I',tol,x,record_trend=True)
+CG_J_x_10, CG_J_err_res_10 = conjugate_gradient(A,b,'J',tol,x,record_trend=True)
+CG_SGS_x_10, CG_SGS_err_res_10 = conjugate_gradient(A,b,'SGS',tol,x,record_trend=True)
+
+
+n = 100
+L = generate_positive_L(n,4)
+A = mat_mult(L,L.T)
+x = generate_x(n)
+b = generate_b(A,x)
+
+SD_I_x_100, SD_I_err_res_100 = steepest_descent(A,b,'I',tol,x,record_trend=True)
+SD_J_x_100, SD_J_err_res_100 = steepest_descent(A,b,'J',tol,x,record_trend=True)
+SD_SGS_x_100, SD_SGS_err_res_100 = steepest_descent(A,b,'SGS',tol,x,record_trend=True)
+CG_I_x_100, CG_I_err_res_100 = conjugate_gradient(A,b,'I',tol,x,record_trend=True)
+CG_J_x_100, CG_J_err_res_100 = conjugate_gradient(A,b,'J',tol,x,record_trend=True)
+CG_SGS_x_100, CG_SGS_err_res_100 = conjugate_gradient(A,b,'SGS',tol,x,record_trend=True)
+
+#%%
+
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey='row', sharex='col',figsize=(12.8,9.6))
+f1.suptitle('Error and Residual at each Iteration', fontsize=16)
+
+ax1.set_title('10x10: Error')
+ax1.plot(SD_I_err_res_10[:,0], label='SD I')
+ax1.plot(SD_J_err_res_10[:,0], label='SD J')
+ax1.plot(SD_SGS_err_res_10[:,0], label='SD SGS')
+ax1.plot(CG_I_err_res_10[:,0], label='CG I')
+ax1.plot(CG_J_err_res_10[:,0], label='CG J')
+ax1.plot(CG_SGS_err_res_10[:,0], label='CG SGS')
+ax1.set_ylabel('Error',labelpad=10)
+ax1.legend()
+
+ax2.set_title('100x100: Error')
+ax2.plot(SD_I_err_res_100[:,0], label='SD I')
+ax2.plot(SD_J_err_res_100[:,0], label='SD J')
+ax2.plot(SD_SGS_err_res_100[:,0], label='SD SGS')
+ax2.plot(CG_I_err_res_100[:,0], label='CG I')
+ax2.plot(CG_J_err_res_100[:,0], label='CG J')
+ax2.plot(CG_SGS_err_res_100[:,0], label='CG SGS')
+ax2.legend()
+
+ax3.set_title('10x10: Residual')
+ax3.plot(SD_I_err_res_10[:,1], label='SD I')
+ax3.plot(SD_J_err_res_10[:,1], label='SD J')
+ax3.plot(SD_SGS_err_res_10[:,1], label='SD SGS')
+ax3.plot(CG_I_err_res_10[:,1], label='CG I')
+ax3.plot(CG_J_err_res_10[:,1], label='CG J')
+ax3.plot(CG_SGS_err_res_10[:,1], label='CG SGS')
+ax3.set_ylabel('Residual',labelpad=10)
+ax3.set_xlabel('Iteration')
+ax3.legend()
+
+ax4.set_title('100x100: Residual')
+ax4.plot(SD_I_err_res_100[:,1], label='SD I')
+ax4.plot(SD_J_err_res_100[:,1], label='SD J')
+ax4.plot(SD_SGS_err_res_100[:,1], label='SD SGS')
+ax4.plot(CG_I_err_res_100[:,1], label='CG I')
+ax4.plot(CG_J_err_res_100[:,1], label='CG J')
+ax4.plot(CG_SGS_err_res_100[:,1], label='CG SGS')
+ax4.set_xlabel('Iteration')
+ax4.legend()
+
+plt.show()
+
+#%%
+
+f1, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2, sharey='row', sharex='col',figsize=(12.8,9.6))
+f1.suptitle('Log Error and Residual at each Iteration', fontsize=16)
+
+ax1.set_title('10x10: Error')
+ax1.plot(np.log(SD_I_err_res_10[:,0]), label='SD I')
+ax1.plot(np.log(SD_J_err_res_10[:,0]), label='SD J')
+ax1.plot(np.log(SD_SGS_err_res_10[:,0]), label='SD SGS')
+ax1.plot(np.log(CG_I_err_res_10[:,0]), label='CG I')
+ax1.plot(np.log(CG_J_err_res_10[:,0]), label='CG J')
+ax1.plot(np.log(CG_SGS_err_res_10[:,0]), label='CG SGS')
+ax1.set_ylabel('Log Error',labelpad=10)
+ax1.legend()
+
+ax2.set_title('100x100: Error')
+ax2.plot(np.log(SD_I_err_res_100[:,0]), label='SD I')
+ax2.plot(np.log(SD_J_err_res_100[:,0]), label='SD J')
+ax2.plot(np.log(SD_SGS_err_res_100[:,0]), label='SD SGS')
+ax2.plot(np.log(CG_I_err_res_100[:,0]), label='CG I')
+ax2.plot(np.log(CG_J_err_res_100[:,0]), label='CG J')
+ax2.plot(np.log(CG_SGS_err_res_100[:,0]), label='CG SGS')
+ax2.legend()
+
+ax3.set_title('10x10: Residual')
+ax3.plot(np.log(SD_I_err_res_10[:,1]), label='SD I')
+ax3.plot(np.log(SD_J_err_res_10[:,1]), label='SD J')
+ax3.plot(np.log(SD_SGS_err_res_10[:,1]), label='SD SGS')
+ax3.plot(np.log(CG_I_err_res_10[:,1]), label='CG I')
+ax3.plot(np.log(CG_J_err_res_10[:,1]), label='CG J')
+ax3.plot(np.log(CG_SGS_err_res_10[:,1]), label='CG SGS')
+ax3.set_ylabel('Log Residual',labelpad=10)
+ax3.set_xlabel('Iteration')
+ax3.legend()
+
+ax4.set_title('100x100: Residual')
+ax4.plot(np.log(SD_I_err_res_100[:,1]), label='SD I')
+ax4.plot(np.log(SD_J_err_res_100[:,1]), label='SD J')
+ax4.plot(np.log(SD_SGS_err_res_100[:,1]), label='SD SGS')
+ax4.plot(np.log(CG_I_err_res_100[:,1]), label='CG I')
+ax4.plot(np.log(CG_J_err_res_100[:,1]), label='CG J')
+ax4.plot(np.log(CG_SGS_err_res_100[:,1]), label='CG SGS')
+ax4.set_xlabel('Iteration')
+ax4.legend()
+
+plt.show()
+
+#%%
+
+A = np.array([[5,7,6,5],[7,10,8,7],[6,8,10,9],[5,7,9,10]], dtype='float')
+b = np.array([23,32,33,31],'float')
+
+tol = 1e-6
+SD_I_x, SD_I_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
+SD_J_x, SD_J_i = steepest_descent(A,b,'J',tol,x,record_trend=False)
+SD_SGS_x, SD_SGS_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
+CG_I_x, CG_I_i = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+CG_J_x, CG_J_i = conjugate_gradient(A,b,'J',tol,x,record_trend=False)
+CG_SGS_x, CG_SGS_i = conjugate_gradient(A,b,'SGS',tol,x,record_trend=False)
+print('\nNumber of iterations required for convergence:\n')
+print('Steepest Descent')
+print('No Preconditioning:',SD_I_i)
+print('Jacobi:',SD_J_i)
+print('Symmetric Gauss-Seidel:',SD_SGS_i)
+print('\nConjugate Gradient')
+print('No Preconditioning:',CG_I_i)
+print('Jacobi:',CG_J_i)
+print('Symmetric Gauss-Seidel:',CG_SGS_i)
