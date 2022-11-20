@@ -678,3 +678,74 @@ print('\nConjugate Gradient')
 print('No Preconditioning:',CG_I_i)
 print('Jacobi:',CG_J_i)
 print('Symmetric Gauss-Seidel:',CG_SGS_i)
+
+#%%
+# Gram-Schmidt
+def generate_Q(n):
+    Q = np.ndarray((n,n))
+    V = np.random.random((n,n))
+    Q[0] = V[0]
+    for i in range(1,n):
+        subtract = 0
+        for j in range(i):
+            subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
+        Q[i] = V[i] + subtract
+    for i in range(n):
+        Q[i] = Q[i]/v_2_norm(Q[i])
+    return Q
+
+def K_analysis(tol,n,K):
+    # first dimension is trial,
+    # second dimension is method
+    # third dimension is error/resid/iteration count 
+    out = np.ndarray((len(K),3,3))
+    for i in tqdm(range(len(K)), desc="Running spectrum analysis"):
+        Q = generate_Q(n)
+        lamb = np.diag(np.linspace(1/K[i],1,num=n))
+        A = mat_mult(Q.T,mat_mult(lamb,Q))
+        x = generate_x(n)
+        b = generate_b(A,x)
+        
+        R_x, R_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
+        SD_x, SD_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
+        CG_x, CG_i  = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
+        
+        R_r = b - mat_mult(A,R_x)
+        SD_r = b - mat_mult(A,SD_x)
+        CG_r = b - mat_mult(A,CG_x)
+        R_r_norm = np.sqrt(sum(R_r**2))
+        SD_r_norm = np.sqrt(sum(SD_r**2))
+        CG_r_norm = np.sqrt(sum(CG_r**2))
+        R_err_norm = np.sqrt(sum((R_x-x)**2))
+        SD_err_norm = np.sqrt(sum((SD_x-x)**2))
+        CG_err_norm = np.sqrt(sum((CG_x-x)**2))
+
+        out[i,0] = np.array([R_err_norm, R_r_norm, R_i])
+        out[i,1] = np.array([SD_err_norm, SD_r_norm, SD_i])
+        out[i,2] = np.array([CG_err_norm, CG_r_norm, CG_i])
+    return out
+
+n = 50
+tol = 1e-6
+K = [1,2,3,4,5,6,7,8,9,10,50,100,500,1000,10000,100000]
+K = [1,2,3,4,5,6,7,8,9,10,50]
+K = [1,2,3,4,5,6,7,8,9,10]
+results = K_analysis(tol,n,K)
+
+f1, ax1 = plt.subplots(1)
+f1.suptitle('Number of iterations to Convergence at each Condition Number K', fontsize=16)
+
+ax1.set_title('100x100')
+ax1.plot(K,results[:,0,2], label='Non-stationary Richardson')
+ax1.plot(K,results[:,1,2], label='Steepest Descent with SGS Preconditioner')
+ax1.plot(K,results[:,2,2], label='Conjugate Gradient')
+
+ax1.set_ylabel('Iterations',labelpad=10)
+ax1.set_xlabel('Condition Number',labelpad=10)
+ax1.legend()
+
+plt.show()
+
+
+
+
