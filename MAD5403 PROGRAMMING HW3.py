@@ -680,17 +680,19 @@ print('Jacobi:',CG_J_i)
 print('Symmetric Gauss-Seidel:',CG_SGS_i)
 
 #%%
+# Extra Credit:
+
 # Gram-Schmidt
 def generate_Q(n):
-    Q = np.ndarray((n,n))
-    V = np.random.random((n,n))
+    Q = np.ndarray((n,n)) # initialize nxn matrix
+    V = np.random.random((n,n)) # initialize random nxn array (will be linearly independent with extremely high probability)
     Q[0] = V[0]
-    for i in range(1,n):
+    for i in range(1,n): # orthogonalizing V using Gram-Schmidt
         subtract = 0
         for j in range(i):
             subtract -= (sum(V[i]*Q[j])/sum(Q[j]**2))*Q[j]
         Q[i] = V[i] + subtract
-    for i in range(n):
+    for i in range(n): # normalize each vector
         Q[i] = Q[i]/v_2_norm(Q[i])
     return Q
 
@@ -698,54 +700,46 @@ def K_analysis(tol,n,K):
     # first dimension is trial,
     # second dimension is method
     # third dimension is error/resid/iteration count 
-    out = np.ndarray((len(K),3,3))
+    out = np.ndarray((len(K),2,3))
     for i in tqdm(range(len(K)), desc="Running spectrum analysis"):
-        Q = generate_Q(n)
-        lamb = np.diag(np.linspace(1/K[i],1,num=n))
-        A = mat_mult(Q.T,mat_mult(lamb,Q))
+        Q = generate_Q(n) # create orthogonal basis for R^n
+        Λ = np.diag(np.linspace(1/K[i],1,num=n)) # create diagonal matrix that contains desired eigenvalue spectrum
+        A = mat_mult(Q.T,mat_mult(Λ,Q)) # create A via QΛQ^T
         x = generate_x(n)
         b = generate_b(A,x)
-        
-        R_x, R_i = steepest_descent(A,b,'I',tol,x,record_trend=False)
-        SD_x, SD_i = steepest_descent(A,b,'SGS',tol,x,record_trend=False)
-        CG_x, CG_i  = conjugate_gradient(A,b,'I',tol,x,record_trend=False)
-        
-        R_r = b - mat_mult(A,R_x)
+        SD_x, SD_i = steepest_descent(A,b,'I',tol,x,record_trend=False) # no preconditioning
+        CG_x, CG_i  = conjugate_gradient(A,b,'I',tol,x,record_trend=False) # no preconditioning
         SD_r = b - mat_mult(A,SD_x)
         CG_r = b - mat_mult(A,CG_x)
-        R_r_norm = np.sqrt(sum(R_r**2))
         SD_r_norm = np.sqrt(sum(SD_r**2))
         CG_r_norm = np.sqrt(sum(CG_r**2))
-        R_err_norm = np.sqrt(sum((R_x-x)**2))
         SD_err_norm = np.sqrt(sum((SD_x-x)**2))
         CG_err_norm = np.sqrt(sum((CG_x-x)**2))
-
-        out[i,0] = np.array([R_err_norm, R_r_norm, R_i])
-        out[i,1] = np.array([SD_err_norm, SD_r_norm, SD_i])
-        out[i,2] = np.array([CG_err_norm, CG_r_norm, CG_i])
+        out[i,0] = np.array([SD_err_norm, SD_r_norm, SD_i])
+        out[i,1] = np.array([CG_err_norm, CG_r_norm, CG_i])
     return out
 
-n = 50
+#%%
+n = 100
 tol = 1e-6
-K = [1,2,3,4,5,6,7,8,9,10,50,100,500,1000,10000,100000]
-K = [1,2,3,4,5,6,7,8,9,10,50]
-K = [1,2,3,4,5,6,7,8,9,10]
-results = K_analysis(tol,n,K)
+K = np.append(np.append(np.array([1.5]),np.arange(2,11)),np.arange(20,510,10))
+results = K_analysis(tol,n,K)  
 
-f1, ax1 = plt.subplots(1)
-f1.suptitle('Number of iterations to Convergence at each Condition Number K', fontsize=16)
-
-ax1.set_title('100x100')
-ax1.plot(K,results[:,0,2], label='Non-stationary Richardson')
-ax1.plot(K,results[:,1,2], label='Steepest Descent with SGS Preconditioner')
-ax1.plot(K,results[:,2,2], label='Conjugate Gradient')
-
+#%%
+f1, ((ax1),(ax2),(ax3)) = plt.subplots(3,1, sharex=True)
+f1.suptitle('Analysis of Condition Number on Convergence for size 100x100', fontsize=16)
+ax1.plot(K,results[:,0,2], label='SD')
+ax1.plot(K,results[:,1,2], label='CG')
 ax1.set_ylabel('Iterations',labelpad=10)
-ax1.set_xlabel('Condition Number',labelpad=10)
 ax1.legend()
 
-plt.show()
+ax2.plot(K,np.log(results[:,0,0]), label='SD')
+ax2.plot(K,np.log(results[:,1,0]), label='CG')
+ax2.set_ylabel('Log Error',labelpad=10)
+ax2.legend()
 
-
-
-
+ax3.plot(K,np.log(results[:,0,1]), label='SD')
+ax3.plot(K,np.log(results[:,1,1]), label='CG')
+ax3.set_ylabel('Log Residual',labelpad=10)
+ax3.set_xlabel('Condition Number (K)',labelpad=10)
+ax3.legend()
