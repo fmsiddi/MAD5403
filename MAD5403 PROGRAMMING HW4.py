@@ -36,16 +36,18 @@ def bisection(func,a,b,tol=1e-6,nmax=1e12):
         else:
             print('bisection method has failed for given search interval.')
             break
-        error = abs(b - a)/2
+        error = abs(fc)
         i += 1
-        
+    if i == nmax:
+        print('maximum number of iterations met')
+        return ''
     return c
 
-x = bisection(test1,-1,3)
-print(x)
+x1 = bisection(test1,-1,3)
+print(x1)
 
-# x = bisection(test1,1e-6,1,6)
-# print(x)
+x2 = bisection(test1,1,6)
+print(x2)
 #%%
 
 def newton(func,x_0,tol=1e-6,nmax=1e12):
@@ -65,14 +67,52 @@ def newton(func,x_0,tol=1e-6,nmax=1e12):
         error = abs(x_k2 - x_k)/2
         x_k = x_k2
         i += 1
-        
+    if i == nmax:
+        print('maximum number of iterations met')
+        return ''
     return x_k
 
 x = sp.symbols('x')
-test = newton(x*sp.exp(-x)-.06064,.99)
+test = newton(x*sp.exp(-x)-.06064,5)
 print(test)
 
 #%%
-def fixed_point(func,Φ):
-    return
+def fixed_point(func,Φ,x_0,tol=1e-6,nmax=1e12):
+    f = sp.lambdify(x, func, "numpy")
+    dΦ = sp.lambdify(x, sp.diff(Φ), "numpy")
+    Φ = sp.lambdify(x, Φ, "numpy")
+    x_k = x_0
+    i = 0
+    error = tol + 1
+    while i < nmax and abs(error) > tol:
+        x_k2 = Φ(x_k)
+        error = abs(f(x_k2))
+        x_k = x_k2
+        i += 1
+    if i == nmax:
+        print('maximum number of iterations met')
+        return ''
+    return x_k
 
+x = sp.symbols('x')
+func = x*sp.exp(-x)-.06064
+
+Φ1 = .06064*sp.exp(x) # for first root
+dΦ1 = sp.diff(Φ1)
+
+Φ2 = sp.log(x) - sp.log(.06064) # for second root
+dΦ2 = sp.diff(Φ2)
+
+
+test = fixed_point(func,Φ2,1)
+print(test)
+
+#%%
+def test_phi(x):
+    return 1/x
+
+line = np.linspace(.05,6,1000)
+
+plt.axhline(y=1, color='black',linestyle='--')
+plt.plot(line,test_phi(line))
+plt.show()
