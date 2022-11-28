@@ -3,6 +3,7 @@ import sympy as sp
 import matplotlib.pyplot as plt
 plt.style.use('seaborn')
 
+#%%
 def test1(x):
     return x*np.exp(-x)-.06064
 
@@ -116,3 +117,45 @@ line = np.linspace(.05,6,1000)
 plt.axhline(y=1, color='black',linestyle='--')
 plt.plot(line,test_phi(line))
 plt.show()
+
+#%%
+def test2(x):
+    return x**3 - x -6
+
+line = np.linspace(-2.5,2.5,1000)
+
+plt.axhline(y=0, color='black',linestyle='--')
+plt.plot(line,test2(line))
+plt.show()
+
+#%%
+
+x = bisection(test2,-10,10)
+print(x)
+
+#%%
+x = sp.symbols('x')
+test = newton(x**3-x-6,0)
+print(test)
+
+#%%
+def test_phi_prime(x):
+    return 1/(3*(x+6)**(2/3))
+
+line = np.linspace(-10,10,1000)
+
+plt.axhline(y=1, color='black',linestyle='--')
+plt.axhline(y=-1, color='black',linestyle='--')
+plt.plot(line,test_phi_prime(line))
+plt.show()
+
+#%%
+
+x = sp.symbols('x')
+func = x**3-x-6
+
+Φ = (x+6)**(1/3) # for first root
+dΦ = sp.diff(Φ)
+
+test = fixed_point(func,Φ,-5)
+print(test)
