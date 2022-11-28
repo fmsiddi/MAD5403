@@ -45,9 +45,8 @@ def bisection(func,a,b,tol=1e-6,nmax=1e12):
     return c
 
 x1 = bisection(test1,-1,3)
-print(x1)
-
 x2 = bisection(test1,1,6)
+print(x1)
 print(x2)
 #%%
 
@@ -74,8 +73,10 @@ def newton(func,x_0,tol=1e-6,nmax=1e12):
     return x_k
 
 x = sp.symbols('x')
-test = newton(x*sp.exp(-x)-.06064,5)
-print(test)
+x1 = newton(x*sp.exp(-x)-.06064,0)
+x2 = newton(x*sp.exp(-x)-.06064,5)
+print(x1)
+print(x2)
 
 #%%
 def fixed_point(func,Φ,x_0,tol=1e-6,nmax=1e12):
@@ -86,6 +87,11 @@ def fixed_point(func,Φ,x_0,tol=1e-6,nmax=1e12):
     i = 0
     error = tol + 1
     while i < nmax and abs(error) > tol:
+        if abs(dΦ(x_k)) >= 1:
+            print('selected Φ or initial guess is not appropriate for this problem')
+            print('x_k:', x_k)
+            print("|Φ'(x_k)|=",dΦ(x_k),">= 1")
+            return ''
         x_k2 = Φ(x_k)
         error = abs(f(x_k2))
         x_k = x_k2
@@ -99,23 +105,36 @@ x = sp.symbols('x')
 func = x*sp.exp(-x)-.06064
 
 Φ1 = .06064*sp.exp(x) # for first root
-dΦ1 = sp.diff(Φ1)
+# dΦ1 = sp.diff(Φ1)
 
 Φ2 = sp.log(x) - sp.log(.06064) # for second root
-dΦ2 = sp.diff(Φ2)
+# dΦ2 = sp.diff(Φ2)
 
-
-test = fixed_point(func,Φ2,1)
-print(test)
+x1 = fixed_point(func,Φ1,0)
+x2 = fixed_point(func,Φ2,2)
+print(x1)
+print(x2)
 
 #%%
-def test_phi(x):
+def test_phi_prime1(x):
+    return .06064*np.exp(x)
+
+line = np.linspace(.05,6,1000)
+
+plt.axhline(y=1, color='black',linestyle='--')
+plt.axhline(y=-1, color='black',linestyle='--')
+plt.plot(line,test_phi_prime1(line))
+plt.show()
+
+#%%
+def test_phi_prime2(x):
     return 1/x
 
 line = np.linspace(.05,6,1000)
 
 plt.axhline(y=1, color='black',linestyle='--')
-plt.plot(line,test_phi(line))
+plt.axhline(y=-1, color='black',linestyle='--')
+plt.plot(line,test_phi_prime2(line))
 plt.show()
 
 #%%
