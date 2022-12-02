@@ -20,7 +20,7 @@ ax1.set_xlabel('x')
 plt.show()
 
 #%%
-def bisection(func,a,b,tol=1e-7,nmax=1e12):
+def bisection(func,a,b,tol=1e-6,nmax=1e12,sol=None):
     if a > b:
         print("ERROR: Please ensure 'a' is less than 'b' when entering search interval")
         print('a:',a)
@@ -45,7 +45,10 @@ def bisection(func,a,b,tol=1e-7,nmax=1e12):
             print('ERROR: Bisection method has failed for given search interval.')
             return 'error', 'error', 'error', 'error', 'error'
         interval_size = np.append(interval_size,abs(b-a))
-        error = abs(fc)
+        if sol == None:
+            error = abs(fc)
+        else:
+            error = abs(c - sol)
         if i == 0:
             error_i = np.array(error)
             x_k = np.array(c)
@@ -59,6 +62,8 @@ def bisection(func,a,b,tol=1e-7,nmax=1e12):
         print('ERROR: Maximum number of iterations met')
         return 'error', 'error', 'error', 'error', 'error'
     return c, interval_size, error_i, x_k, fx_k
+
+#%%
 
 # function has a maximum at x = 1, so try intervals from left of max and right of max
 x1, interval_size1, error_i1, x_k1, fx_k1 = bisection(test1,0,1)
@@ -127,6 +132,7 @@ def newton(func,x_0,tol=1e-6,nmax=1e12):
         return 'error', 'error', 'error', 'error', 'error'
     return x_k, i, error_i, x_k_track, fx_k_track
 
+#%%
 x = sp.symbols('x')
 _, _, _, _, _ = newton(x*sp.exp(-x)-.06064,1) # will result in error so not storing variables
 x3, iterations3, error_i3, x_k3, fx_k3 = newton(x*sp.exp(-x)-.06064,.99)
@@ -279,6 +285,14 @@ ax15.legend()
 plt.tight_layout()
 
 
+
+
+
+
+
+
+
+
 #%%
 def test2(x):
     return x**3 - x - 6
@@ -296,8 +310,9 @@ ax16.set_xlabel('x')
 plt.show()
 
 #%%
+# BISECTION METHOD FOR SECOND TEST FUNCTION
 
-x10, interval_size10, error_i10, x_k10, fx_k10 = bisection(test2,-10,10)
+x10, interval_size10, error_i10, x_k10, fx_k10 = bisection(test2,-10,10, sol=2)
 
 f8, ((ax17,ax18,ax19)) = plt.subplots(1,3,figsize=(12.8,4.8))
 f8.suptitle('Bisection Method Results for Second Test Function', fontsize=16)
@@ -319,10 +334,24 @@ ax19.set_xlabel('Iteration')
 
 plt.tight_layout()
 
+#%%
 # TODO: DEMONSTRATE CONVERGENCE ORDER FOR [-5,10]. OUTPUT NUMBER OF ITERATIONS
 
+theoretical_iter = np.log2((10--5)/(10**-6))-1
+print('theoretical number of iterations:',theoretical_iter)
+x101, interval_size101, error_i101, x_k101, fx_k101 = bisection(test2,-5,10,tol=1e-6, sol=2)
+print('iterations:', len(x_k101))
+
+f_bonus1, ax_bonus1 = plt.subplots()
+# f_bonus1.suptitle('Bisection Method Results for First Test Function\nInitial Search Intervals: Blue = [0,1]  Green = [1,5]', fontsize=14)
+
+ax_bonus1.set_title('Log of Size of Interval at Each Iteration')
+ax_bonus1.plot(np.log(interval_size101), label='First Root')
+ax_bonus1.set_ylabel('log(interval size)')
+ax_bonus1.legend()
 
 #%%
+# NEWTON'S METHOD FOR SECOND TEST FUNCTION
 
 x = sp.symbols('x')
 _, _, _, _, _ = newton(x**3-x-6, 1/sp.sqrt(3)) # will result in error so not storing variables
@@ -347,8 +376,8 @@ ax22.plot(fx_k11, label='Initial guess: .57735')
 ax22.set_ylabel('f(x_k)')
 ax22.set_xlabel('Iteration')
 
-
 plt.tight_layout()
+
 
 f10, ((ax23,ax24,ax25)) = plt.subplots(1,3,figsize=(12.8,4.8))
 f10.suptitle('Newton Method Results for Second Test Function\nInitial guess: 5', fontsize=16)
@@ -370,9 +399,55 @@ ax25.set_xlabel('Iteration')
 
 plt.tight_layout()
 
+#%%
 # TODO: DEMONSTRATE CONVERGENCE ORDER FOR [-5,10]. OUTPUT NUMBER OF ITERATIONS
 
+def newton_quad_conv(func,x_0,sol,tol=1e-6,nmax=1e12):
+    f = sp.lambdify(x, func, "numpy")
+    df = sp.lambdify(x, sp.diff(func), "numpy")
+    if round(sp.diff(func).evalf(subs={x: x_0}),120) == 0: # need to write this mess so 1/sqrt 3 evals to 0
+        print("ERROR: Derivative of f(x) at x_0 is 0, please pick a different initial guess.")
+        return 'error', 'error', 'error', 'error', 'error'
+    x_k_track = np.array(x_0)
+    fx_k_track = np.array(f(x_0))
+    error_i = np.array(abs(sol-x_0))
+    x_k = x_0
+    i = 0
+    error = tol + 1
+    while i < nmax and abs(error) > tol:
+        if round(sp.diff(func).evalf(subs={x: x_k}),120) == 0:
+            print("ERROR: Derivative of f(x) at x_k is 0, Newton's method fails for this choice of initial guess")
+            return 'error', 'error', 'error', 'error', 'error'
+        x_k = x_k - f(x_k)/df(x_k)
+        x_k_track = np.append(x_k_track,x_k)
+        error = abs(sol-x_k)
+        fx_k_track = np.append(fx_k_track,f(x_k))
+        error_i = np.append(error_i,abs(f(x_k)))
+        i += 1
+    if i == nmax:
+        print('ERROR: tolerance was not reached in maximum number of iterations met')
+        return 'error', 'error', 'error', 'error', 'error'
+    return x_k, i, error_i, x_k_track, fx_k_track
+
+x = sp.symbols('x')
+x_bonus2, iterations_bonus2, error_i_bonus2, x_k_bonus2, fx_k_bonus2 = newton_quad_conv(x**3-x-6, .57735, sol=2, tol=1e-9)
+error_i_bonus2_prev = np.roll(error_i_bonus2,1)
+error_i_bonus2_prev_sq = error_i_bonus2_prev**2
+
+f_bonus2, ax_bonus2 = plt.subplots()
+
+ax_bonus2.set_title('Log of Error and Squared Previous Error Scaled by M=5')
+ax_bonus2.plot(np.log(error_i_bonus2[2:]), label='e_k')
+ax_bonus2.plot(np.log(5*error_i_bonus2_prev_sq[2:]), label='5 * e_(k-1)^2')
+ax_bonus2.set_ylabel('log(error)')
+ax_bonus2.set_xlabel('Iteration')
+ax_bonus2.legend()
+
+plt.tight_layout()
+
 #%%
+# FIXED POINT METHOD FOR SECOND TEST FUNCTION
+
 def test_phi_prime3(x):
     return 1/(3*(x+6)**(2/3))
 
@@ -395,7 +470,7 @@ plt.show()
 x = sp.symbols('x')
 func = x**3-x-6
 
-Φ = (x+6)**(1/3) # for first root
+Φ = (x+6)**(1/3)
 dΦ = sp.diff(Φ)
 
 x13, iterations13, error_i13, x_k13, fx_k13 = fixed_point(func,Φ,-5)
@@ -410,21 +485,89 @@ ax27.set_xlabel('Iteration')
 ax27.legend()
 
 ax28.set_title('x_k at Each Iteration')
-ax28.plot(x_k12, label='Φ = (x+6)^(1/3)')
+ax28.plot(x_k13, label='Φ = (x+6)^(1/3)')
 ax28.set_ylabel('x_k')
 ax28.set_xlabel('Iteration')
-ax27.legend()
+ax28.legend()
 
 ax29.set_title('f(x_k) at Each Iteration')
-ax29.plot(fx_k12, label='Φ = (x+6)^(1/3)')
+ax29.plot(fx_k13, label='Φ = (x+6)^(1/3)')
 ax29.set_ylabel('f(x_k)')
 ax29.set_xlabel('Iteration')
-ax27.legend()
+ax29.legend()
 
 plt.tight_layout()
 
 #%%
 # CORRECTNESS TESTS
 
-x14, interval_size14, error_i14 = bisection(test1,1,10,tol=1e-6)
-iterations1 = len(interval_size14)
+x14, interval_size14, error_i14, x_k14, fx_k14 = bisection(test1,1,10,tol=1e-6)
+iterations14 = len(interval_size14)-1
+print('Number of iterations for Bisection Correctness Test:', iterations14)
+
+f13, (ax30,ax31) = plt.subplots(1,2,figsize=(12.8,9.6))
+f13.suptitle('Bisection Method Results for Correctness Test', fontsize=14)
+
+ax30.set_title('x_k at Each Iteration')
+ax30.plot(x_k14, label='First Root')
+ax30.set_ylabel('x_k')
+ax30.set_xlabel('Iteration')
+
+ax31.set_title('f(x_k) at Each Iteration')
+ax31.plot(fx_k14, label='First Root')
+ax31.set_ylabel('f(x_k)')
+ax31.set_xlabel('Iteration')
+
+plt.tight_layout()
+
+#%%
+x = sp.symbols('x')
+x15, iterations15, error_i15, x_k15, fx_k15 = newton(x*sp.exp(-x)-.06064,2)
+print('Number of iterations for Newton Correctness Test:',iterations15)
+
+f14, (ax32,ax33) = plt.subplots(1,2,figsize=(12.8,4.8))
+f14.suptitle('Newton Method Results for Correctness Test', fontsize=14)
+
+x_ticks = np.arange(iterations15+1)
+ax32.set_title('x_k at Each Iteration')
+ax32.plot(x_ticks,x_k15)
+ax32.set_ylabel('x_k')
+ax32.set_xlabel('Iteration')
+
+ax33.set_title('f(x_k) at Each Iteration')
+ax33.plot(x_ticks,fx_k15)
+ax33.set_ylabel('f(x_k)')
+ax33.set_xlabel('Iteration')
+
+plt.sca(ax32)
+plt.xticks(x_ticks)
+plt.sca(ax33)
+plt.xticks(x_ticks)
+
+plt.tight_layout()
+
+#%%
+x = sp.symbols('x')
+func = x*sp.exp(-x)-.06064
+
+Φ = x*sp.exp(-x)+x-.06064 
+dΦ = sp.diff(Φ)
+
+x16, iterations16, error_i16, x_k16, fx_k16 = fixed_point(func,Φ,2)
+
+f12, (ax34,ax35) = plt.subplots(1,2,figsize=(12.8,4.8))
+f12.suptitle('Fixed Point Method Results for Correctness Test', fontsize=16)
+
+ax34.set_title('x_k at Each Iteration')
+ax34.plot(x_k16, label='Φ = xe^(-x) + x - .06064')
+ax34.set_ylabel('x_k')
+ax34.set_xlabel('Iteration')
+ax34.legend()
+
+ax35.set_title('f(x_k) at Each Iteration')
+ax35.plot(fx_k16, label='Φ = xe^(-x) + x - .06064')
+ax35.set_ylabel('f(x_k)')
+ax35.set_xlabel('Iteration')
+ax35.legend()
+
+plt.tight_layout()
